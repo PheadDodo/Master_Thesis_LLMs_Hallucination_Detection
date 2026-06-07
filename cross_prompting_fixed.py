@@ -28,6 +28,19 @@ def parse_args():
 
     return parser.parse_args()
 
+
+def select_verified_examples(sample):
+    data = [
+        ex for ex in sample["Data"]
+        if ex.get("QuestionPartOfVerifiedEval") is True
+    ]
+    data_ids = {ex.get("QuestionId") for ex in data}
+    return [
+        ex for ex in sample["Data"]
+        if ex.get("QuestionId") in data_ids
+    ]
+
+
 def build_cross_prompting_fixed(llama_data, qwen_data):
     cp_fixed = []
     qwen_by_id = {ex["question_id"]: ex for ex in qwen_data}
@@ -83,8 +96,8 @@ def main():
 
 
     # load TriviaQA verified subset
-    data = load_json(config.TRIVIAQA_PATH)
-    data = [ex for ex in data["Data"]]
+    sample = load_json(config.TRIVIAQA_PATH)
+    data = select_verified_examples(sample)
     print(f"Loaded {len(data)} verified question-answer pairs")
 
     start_time = time.time()
