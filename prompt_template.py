@@ -1,0 +1,129 @@
+paraphrase_prompt = (
+    "Rewrite the following question into {n} distinctly different paraphrased questions.\n"
+    "Rules:\n"
+    "1. Keep the exact same meaning and intent.\n"
+    "2. Use varied sentence structures and vocabulary.\n"
+    "3. Return exactly {n} lines, one question per line.\n"
+    "4. Do NOT use numbers, bullet points, or any introductory text.\n"
+    "5. Output ONLY the paraphrased questions. Do NOT provide any explanations, conversational filler, or greetings.\n"
+    "\n"
+    "Example 1\n"
+    "Original question: What are the health benefits of drinking green tea?\n"
+    "Paraphrases:\n"
+    "What health advantages are associated with drinking green tea?\n"
+    "How does green tea benefit your health?\n"
+    "What positive effects can green tea have on the body?\n"
+    "\n"
+    "Example 2\n"
+    "Original question: How can I improve my time management skills?\n"
+    "Paraphrases:\n"
+    "What are some ways to get better at managing my time?\n"
+    "How do I develop stronger time-management habits?\n"
+    "What strategies can help me manage my time more effectively?\n"
+    "\n"
+    "Now do the task for the input below.\n"
+    "Original question: {q}\n"
+    "Paraphrases:\n"
+)
+
+
+
+output_prompt = (
+    "Provide a very brief answer to the question. If you are not sure, say exactly: I don't know.\n\n"
+    "Question: What is the capital of France?\n"
+    "Output: Paris\n\n"
+    "Question: What is the exact temperature of the sun's core at this second?\n"
+    "Output: I don't know\n\n"
+    "Question: Who wrote Hamlet?\n"
+    "Output: William Shakespeare\n\n"
+    "Question: {q}\n"
+    "Output: "
+)
+
+paraphrases_check = (
+    "Task: Determine if Question 1 and Question 2 have the exact same meaning.\n"
+    "Rules: You must output EXACTLY ONE WORD: 'Yes' or 'No'. Do NOT output any extra words, punctuation, or explanations.\n"
+    "\n"
+    "Question 1: How do I take a screenshot on a Mac?\n"
+    "Question 2: What is the keyboard shortcut for capturing the screen on macOS?\n"
+    "Answer: Yes\n"
+    "\n"
+    "Question 1: Who won the World Cup in 2018?\n"
+    "Question 2: Where was the World Cup held in 2018?\n"
+    "Answer: No\n"
+    "\n"
+    "Question 1: Is it going to rain tomorrow?\n"
+    "Question 2: What is the weather forecast for tomorrow?\n"
+    "Answer: No\n"
+    "\n"
+    "Question 1: What is the height of the Eiffel Tower?\n"
+    "Question 2: How tall is the Eiffel Tower in Paris?\n"
+    "Answer: Yes\n"
+    "\n"
+    "Question 1: {q0}\n"
+    "Question 2: {q1}\n"
+    "Answer:"
+)
+
+# output template without i dont know option
+output_prompt_no_idk = (
+    "Provide a very brief answer to the question.\n\n"
+    "Question: What is the capital of France?\n"
+    "Output: Paris\n\n"
+    "Question: What is the exact temperature of the sun's core at this second?\n"
+    "Output: 15 million degrees Celsius\n\n"
+    "Question: Who wrote Hamlet?\n"
+    "Output: William Shakespeare\n\n"
+    "Question: {q}\n"
+    "Output: "
+)
+
+
+
+# Alternative method - No Few-shot prompting
+# paraphrase_prompt= (
+#     "Rewrite the following question into {n} distinctly different paraphrased questions.\n"
+#     "Rules:\n"
+#     "1. Keep the exact same meaning and intent.\n"
+#     "2. Use varied sentence structures and vocabulary.\n"
+#     "3. Return exactly {n} lines, one question per line.\n"
+#     "4. Do NOT use numbers, bullet points, or any introductory text.\n"
+#     "5. Output ONLY the paraphrased questions. Do NOT provide any explanations, conversational filler, or greetings.\n"
+#     "\n"
+#     "Original question: {q}\n"
+#     "Paraphrases:\n"
+# )
+
+
+
+
+# Alternative method - Chain of thought prompt
+#paraphrases_check = (
+#    "Task: Determine if the 'Paraphrased Question' asks for the exact same information as the 'Original Question'.\n"
+#    "Instructions:\n"
+#    "1. Provide a brief reasoning explaining the semantic differences or similarities.\n"
+#    "2. On the very last line, output exactly: 'Verdict: Yes' or 'Verdict: No'.\n"
+#    "\n"
+#    "--- Examples ---\n"
+#    "\n"
+#    "Original Question: How do I take a screenshot on a Mac?\n"
+#    "Paraphrased Question: What is the keyboard shortcut for capturing the screen on macOS?\n"
+#    "Reasoning: Both questions are asking for the method to capture an image of the screen on an Apple computer. The intent and required answer are identical.\n"
+#    "Verdict: Yes\n"
+#    "\n"
+#    "Original Question: Who won the World Cup in 2018?\n"
+#    "Paraphrased Question: Where was the World Cup held in 2018?\n"
+#    "Reasoning: The first question asks for the winner (France), while the second asks for the location (Russia). The topics are related, but the answers are different.\n"
+#    "Verdict: No\n"
+#    "\n"
+#    "Original Question: Is it going to rain tomorrow?\n"
+#    "Paraphrased Question: What is the weather forecast for tomorrow?\n"
+#    "Reasoning: The first question specifically asks about rain, whereas the second asks for a general forecast which might include temperature, wind, etc. The second question is broader, so they are not strictly equivalent.\n"
+#    "Verdict: No\n"
+#    "\n"
+#    "--- Your Turn ---\n"
+#    "\n"
+#    "Original Question: {q0}\n"
+#    "Paraphrased Question: {q1}\n"
+#    "Reasoning:"
+#)

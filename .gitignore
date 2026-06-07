@@ -1,0 +1,23 @@
+# Secrets
+access_token.txt
+.env
+*.key
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Large or local experiment data
+datasets/
+models/
+models--*/
+results/
+.locks/
+
+# Downloaded local skill bundle
+skill/
+
+# Large notebooks with possible outputs
+prompting_test.ipynb
+prompting_test - 副本.ipynb
