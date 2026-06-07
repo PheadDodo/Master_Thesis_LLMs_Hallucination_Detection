@@ -65,20 +65,6 @@ paraphrases_check = (
     "Answer:"
 )
 
-# output template without i dont know option
-output_prompt_no_idk = (
-    "Provide a very brief answer to the question.\n\n"
-    "Question: What is the capital of France?\n"
-    "Output: Paris\n\n"
-    "Question: What is the exact temperature of the sun's core at this second?\n"
-    "Output: 15 million degrees Celsius\n\n"
-    "Question: Who wrote Hamlet?\n"
-    "Output: William Shakespeare\n\n"
-    "Question: {q}\n"
-    "Output: "
-)
-
-
 
 # Alternative method - No Few-shot prompting
 # paraphrase_prompt= (

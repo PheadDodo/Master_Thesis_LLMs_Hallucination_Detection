@@ -3,15 +3,8 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 import argparse
 import time
-import torch
 
 import config
-
-from utils import load_llm
-from utils import load_json
-from utils import save_results
-from utils import ask
-from prompt_template import output_prompt
 
 
 def parse_args():
@@ -37,17 +30,17 @@ def parse_args():
 
 def build_cross_prompting_fixed(llama_data, qwen_data):
     cp_fixed = []
+    qwen_by_id = {ex["question_id"]: ex for ex in qwen_data}
 
-    for ex_llama, ex_qwen in zip(llama_data, qwen_data):
+    for ex_llama in llama_data:
         qid = ex_llama["question_id"]
         original_q = ex_llama["original"]
         answers_llama = ex_llama["answers"]
-        answers_qwen = ex_qwen["answers"]
 
-        # find corresponding qwen entry
-        qwen_entry = next((e for e in qwen_data if e["question_id"] == qid), None)
+        qwen_entry = qwen_by_id.get(qid)
         if not qwen_entry:
             continue
+        answers_qwen = qwen_entry["answers"]
 
         cp_entry = {
             "question_id": qid,
@@ -62,6 +55,14 @@ def build_cross_prompting_fixed(llama_data, qwen_data):
 
 
 def main():
+    import torch
+
+    from prompt_template import output_prompt
+    from utils import ask
+    from utils import load_json
+    from utils import load_llm
+    from utils import save_results
+
     args = parse_args()
 
     # load the single LLM (Llama-3.1-8B-Instruct) for the baseline method
