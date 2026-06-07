@@ -3,24 +3,13 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 import argparse
 import time
-import torch
 
 import config
-
-from utils import load_llm
-from utils import load_json
-from utils import save_results
-from utils import paraphrase_question
-from utils import ask
-from utils import check_meaning
-from utils import append_valid_paraphrases
-from utils import cleaned_question_answers
-from prompt_template import paraphrase_prompt, output_prompt, paraphrases_check
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Baseline: sample a single LLM n times per original question"
+        description="Cross prompting: generate paraphrases, cross-check meaning, and obtain answers"
     )
 
     parser.add_argument("--llm_llama_path", type=str, default=config.LLM_LLAMA_PATH)
@@ -29,8 +18,6 @@ def parse_args():
     parser.add_argument("--temperature", type=float, default=config.TEMPERATURE)
     parser.add_argument("--top_p", type=float, default=config.TOP_P)
     parser.add_argument("--n", type=int, default=config.N)
-    parser.add_argument("--output_path_llama", type=str, default=config.OUTPUT_PATH_LLAMA)
-    parser.add_argument("--output_path_qwen", type=str, default=config.OUTPUT_PATH_QWEN)
     parser.add_argument("--output_path_cp", type=str, default=config.OUTPUT_PATH_CP)
 
     parser.add_argument("--load_in_8bit", dest="load_in_8bit", action="store_true")
@@ -40,7 +27,35 @@ def parse_args():
     return parser.parse_args()
 
 
+def select_verified_examples(sample):
+    data = [
+        ex for ex in sample["Data"]
+        if ex.get("QuestionPartOfVerifiedEval") is True
+    ]
+    data_ids = {ex.get("QuestionId") for ex in data}
+    return [
+        ex for ex in sample["Data"]
+        if ex.get("QuestionId") in data_ids
+    ]
+
+
+def questions_for_answering(original_q, valid_paraphrases):
+    return valid_paraphrases if valid_paraphrases else [original_q]
+
+
 def main():
+    import torch
+
+    from prompt_template import paraphrase_prompt, output_prompt, paraphrases_check
+    from utils import ask
+    from utils import append_valid_paraphrases
+    from utils import check_meaning
+    from utils import cleaned_question_answers
+    from utils import load_json
+    from utils import load_llm
+    from utils import paraphrase_question
+    from utils import save_results
+
     args = parse_args()
     llm_path_llama = args.llm_llama_path
     llm_path_qwen = args.llm_qwen_path
@@ -64,17 +79,15 @@ def main():
     # load sample data, a verified subset of TriviaQA_rc verified-wikipedia-dev.json, 
     # which is verified by human annotators to have correct question-answer pairs
     sample = load_json(config.TRIVIAQA_PATH)
-    data = [ex for ex in sample["Data"] if ex.get("QuestionPartOfVerifiedEval") is True]
-    data_ids = [ex.get("QuestionId") for ex in data]
-    data_rest = [ex for ex in sample["Data"] if ex.get("QuestionId") not in data_ids]
+    data_verified = select_verified_examples(sample)
 
-    print(f"Loaded {len(data_rest)} verified question-answer pairs from TriviaQA_rc_verified-wikipedia-dev.json")
+    print(f"Loaded {len(data_verified)} verified question-answer pairs from TriviaQA_rc_verified-wikipedia-dev.json")
     
     # run cross prompting for each question-answer pair
     start_time = time.time()
     
     cleaned_results = []
-    for ex in data_rest[:]:
+    for ex in data_verified[:]:
         original_q = ex["Question"]
         question_id = ex["QuestionId"]
         
@@ -128,12 +141,14 @@ def main():
         # save same-meaning paraphrases according to cross-check results
         cleaned_cross_llama = append_valid_paraphrases(ex, generated_paraphrases_qwen, cross_check_llama)
         cleaned_cross_qwen = append_valid_paraphrases(ex, generated_paraphrases_llama, cross_check_qwen)
+        clean_paraphrases_qwen = cleaned_cross_llama["paraphrases"][0]
+        clean_paraphrases_llama = cleaned_cross_qwen["paraphrases"][0]
         
         # cross prompting for answers, i.e. ask llama with qwen's cleaned paraphrases and ask qwen with llama's cleaned paraphrases
         cross_ask_llama = ask(
             llm=llm_llama, 
             tokenizer=tokenizer_llama, 
-            paraphrases=cleaned_cross_llama["paraphrases"][0], 
+            paraphrases=questions_for_answering(original_q, clean_paraphrases_qwen),
             prompt_template=output_prompt,
             do_sample=True,
             temperature=args.temperature,
@@ -143,7 +158,7 @@ def main():
         cross_ask_qwen = ask(
             llm=llm_qwen, 
             tokenizer=tokenizer_qwen, 
-            paraphrases=cleaned_cross_qwen["paraphrases"][0], 
+            paraphrases=questions_for_answering(original_q, clean_paraphrases_llama),
             prompt_template=output_prompt,
             do_sample=True,
             temperature=args.temperature,
@@ -154,8 +169,8 @@ def main():
         final_questions_answers = cleaned_question_answers(
             original_q=original_q,
             question_id=question_id,
-            clean_paraphrases_1=cleaned_cross_llama["paraphrases"][0],
-            clean_paraphrases_2=cleaned_cross_qwen["paraphrases"][0],
+            clean_paraphrases_1=clean_paraphrases_qwen,
+            clean_paraphrases_2=clean_paraphrases_llama,
             answers_1=cross_ask_llama,
             answers_2=cross_ask_qwen
         )
@@ -163,7 +178,7 @@ def main():
         cleaned_results.append(final_questions_answers)
         
         print(
-            f"[{len(cleaned_results)}/{len(data)}] QID={question_id} | n={n} | answers_llama={cross_ask_llama} | answers_qwen={cross_ask_qwen}"
+            f"[{len(cleaned_results)}/{len(data_verified)}] QID={question_id} | n={n} | answers_llama={cross_ask_llama} | answers_qwen={cross_ask_qwen}"
         )
     
     #save results, do_sample=True, temperature=0.5, top_p=0.95

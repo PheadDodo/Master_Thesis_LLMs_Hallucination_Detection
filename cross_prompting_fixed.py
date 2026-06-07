@@ -11,7 +11,7 @@ from utils import load_llm
 from utils import load_json
 from utils import save_results
 from utils import ask
-from prompt_template import output_prompt, output_prompt_no_idk
+from prompt_template import output_prompt
 
 
 def parse_args():
@@ -101,7 +101,7 @@ def main():
             llm=llm_llama,
             tokenizer=tokenizer_llama,
             paraphrases=[original_q] * n,
-            prompt_template=output_prompt_no_idk, # try to avoid generating "I don't know" answers for the baseline method
+            prompt_template=output_prompt, # try to avoid generating "I don't know" answers for the baseline method
             do_sample=True,
             temperature=args.temperature,
             top_p=args.top_p,
@@ -111,7 +111,7 @@ def main():
             llm=llm_qwen,
             tokenizer=tokenizer_qwen,
             paraphrases=[original_q] * n,
-            prompt_template=output_prompt_no_idk, # try to avoid generating "I don't know" answers for the baseline method
+            prompt_template=output_prompt, # try to avoid generating "I don't know" answers for the baseline method
             do_sample=True,
             temperature=args.temperature,
             top_p=args.top_p,

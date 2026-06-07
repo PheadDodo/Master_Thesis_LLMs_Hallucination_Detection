@@ -40,16 +40,18 @@ def main():
     
     samples_llama = load_json(args.output_path_llama)
     samples_qwen = load_json(args.output_path_qwen)
-    #samples_cp = load_json(args.output_path_cp)
+    samples_cp = load_json(args.output_path_cp)
     samples_cp_fixed = load_json(args.output_path_cp_fixed)
     
     se_analyzer = SemanticEntropyAnalyzer(entailment_model=EntailmentDeberta(verbose=False))
     print("Initialized Semantic Entropy Analyzer")
 
+    cp_results = se_analyzer.process_sample_collection(samples_cp)
     cp_fixed_results = se_analyzer.process_sample_collection(samples_cp_fixed)
     baseline_llama_results = se_analyzer.baseline_semantic_entropy(samples_llama)
     baseline_qwen_results = se_analyzer.baseline_semantic_entropy(samples_qwen)
     
+    save_results(cp_results, args.output_path_cp_se)
     save_results(cp_fixed_results, args.output_path_cp_fixed_se)
     save_results(baseline_llama_results, args.output_path_llama_se)
     save_results(baseline_qwen_results, args.output_path_qwen_se)
