@@ -5,6 +5,7 @@ import argparse
 import time
 
 import config
+from data_utils import select_verified_examples
 
 
 def parse_args():
@@ -25,18 +26,6 @@ def parse_args():
     parser.set_defaults(load_in_8bit=config.LOAD_IN_8BIT)
 
     return parser.parse_args()
-
-
-def select_verified_examples(sample):
-    data = [
-        ex for ex in sample["Data"]
-        if ex.get("QuestionPartOfVerifiedEval") is True
-    ]
-    data_ids = {ex.get("QuestionId") for ex in data}
-    return [
-        ex for ex in sample["Data"]
-        if ex.get("QuestionId") in data_ids
-    ]
 
 
 def questions_for_answering(original_q, valid_paraphrases):
