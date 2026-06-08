@@ -8,7 +8,7 @@ import config
 from data_utils import select_verified_examples
 
 
-def parse_args():
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description="Baseline: sample a single LLM n times per original question"
     )
@@ -16,6 +16,7 @@ def parse_args():
     parser.add_argument("--llm_llama_path", type=str, default=config.LLM_LLAMA_PATH)
     parser.add_argument("--llm_qwen_path", type=str, default=config.LLM_QWEN_PATH)
     parser.add_argument("--device_map", type=str, default=config.DEVICE_MAP)
+    parser.add_argument("--qwen_device_map", type=str, default=config.QWEN_DEVICE_MAP)
     parser.add_argument("--temperature", type=float, default=config.TEMPERATURE)
     parser.add_argument("--top_p", type=float, default=config.TOP_P)
     parser.add_argument("--n", type=int, default=config.N)
@@ -27,7 +28,7 @@ def parse_args():
     parser.add_argument("--no_load_in_8bit", dest="load_in_8bit", action="store_false")
     parser.set_defaults(load_in_8bit=config.LOAD_IN_8BIT)
 
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def build_cross_prompting_fixed(llama_data, qwen_data):
@@ -114,7 +115,7 @@ def main():
         args.llm_qwen_path,
         load_in_8bit=False,
         dtype=torch.float16,
-        device_map="cpu",
+        device_map=args.qwen_device_map,
     )
 
 

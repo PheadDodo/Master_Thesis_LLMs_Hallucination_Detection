@@ -9,6 +9,7 @@ LLM_QWEN_PATH = "./models/Qwen3-8B"
 # model loading
 LOAD_IN_8BIT = True
 DEVICE_MAP = "auto"
+QWEN_DEVICE_MAP = "cpu"
 DTYPE = "float16"
 
 # number of sampling
