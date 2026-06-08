@@ -67,6 +67,40 @@ def build_cross_prompting_fixed(llama_data, qwen_data):
     return cp_fixed
 
 
+def sample_baseline_answers(
+    data,
+    llm,
+    tokenizer,
+    ask_fn,
+    prompt_template,
+    n,
+    temperature,
+    top_p,
+):
+    baseline_results = []
+
+    for ex in data:
+        original_q = ex["Question"]
+        question_id = ex["QuestionId"]
+        answers = ask_fn(
+            llm=llm,
+            tokenizer=tokenizer,
+            paraphrases=[original_q] * n,
+            prompt_template=prompt_template,
+            do_sample=True,
+            temperature=temperature,
+            top_p=top_p,
+        )
+
+        baseline_results.append({
+            "question_id": question_id,
+            "original": original_q,
+            "answers": answers,
+        })
+
+    return baseline_results
+
+
 def main():
     import torch
 
@@ -110,41 +144,32 @@ def main():
 
         n = args.n # sampling n answers per question for the baseline method
 
-        # ask the single LLM the original question n times
-        answers_llama = ask(
+        baseline_llama = sample_baseline_answers(
+            data=[ex],
             llm=llm_llama,
             tokenizer=tokenizer_llama,
-            paraphrases=[original_q] * n,
-            prompt_template=output_prompt, # try to avoid generating "I don't know" answers for the baseline method
-            do_sample=True,
+            ask_fn=ask,
+            prompt_template=output_prompt,
+            n=n,
             temperature=args.temperature,
             top_p=args.top_p,
-        )
-        
-        answers_qwen = ask(
+        )[0]
+        baseline_qwen = sample_baseline_answers(
+            data=[ex],
             llm=llm_qwen,
             tokenizer=tokenizer_qwen,
-            paraphrases=[original_q] * n,
-            prompt_template=output_prompt, # try to avoid generating "I don't know" answers for the baseline method
-            do_sample=True,
+            ask_fn=ask,
+            prompt_template=output_prompt,
+            n=n,
             temperature=args.temperature,
             top_p=args.top_p,
-        )
+        )[0]
 
-        baseline_results_llama.append({
-            "question_id": question_id,
-            "original": original_q,
-            "answers": answers_llama,
-        })
-
-        baseline_results_qwen.append({
-            "question_id": question_id,
-            "original": original_q,
-            "answers": answers_qwen,
-        })
+        baseline_results_llama.append(baseline_llama)
+        baseline_results_qwen.append(baseline_qwen)
 
         print(
-            f"[{len(baseline_results_llama)}/{len(data)}] QID={question_id} | n={n} | answers_llama={answers_llama} | answers_qwen={answers_qwen}"
+            f"[{len(baseline_results_llama)}/{len(data)}] QID={question_id} | n={n} | answers_llama={baseline_llama['answers']} | answers_qwen={baseline_qwen['answers']}"
         )
     
     cp_fixed = build_cross_prompting_fixed(baseline_results_llama, baseline_results_qwen)

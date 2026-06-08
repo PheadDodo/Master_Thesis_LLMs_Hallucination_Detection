@@ -21,3 +21,11 @@ skill/
 # Large notebooks with possible outputs
 prompting_test.ipynb
 prompting_test - 副本.ipynb
+evaluation.ipynb
+
+# ignore all the plots
+accuracy_coverage_curve.png
+accuracy_coverage_curves.png
+combined_roc_accuracy_coverage.png
+roc_curve.png
+
