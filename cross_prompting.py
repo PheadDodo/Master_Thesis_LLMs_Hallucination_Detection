@@ -33,6 +33,26 @@ def questions_for_answering(original_q, valid_paraphrases):
     return valid_paraphrases if valid_paraphrases else [original_q]
 
 
+def build_cross_prompting_record(
+    original_q,
+    question_id,
+    clean_paraphrases_qwen,
+    clean_paraphrases_llama,
+    answers_llama,
+    answers_qwen,
+):
+    return {
+        "question_id": question_id,
+        "original": original_q,
+        "paraphrases_generated_llama": clean_paraphrases_llama,
+        "paraphrases_generated_qwen": clean_paraphrases_qwen,
+        "paraphrases": clean_paraphrases_qwen + clean_paraphrases_llama,
+        "answers_responsed_llama": answers_llama,
+        "answers_responsed_qwen": answers_qwen,
+        "answers": answers_llama + answers_qwen,
+    }
+
+
 def main():
     import torch
 
@@ -40,7 +60,6 @@ def main():
     from utils import ask
     from utils import append_valid_paraphrases
     from utils import check_meaning
-    from utils import cleaned_question_answers
     from utils import load_json
     from utils import load_llm
     from utils import paraphrase_question
@@ -156,13 +175,13 @@ def main():
         )
         
         # save cleaned paraphrases and answers
-        final_questions_answers = cleaned_question_answers(
+        final_questions_answers = build_cross_prompting_record(
             original_q=original_q,
             question_id=question_id,
-            clean_paraphrases_1=clean_paraphrases_qwen,
-            clean_paraphrases_2=clean_paraphrases_llama,
-            answers_1=cross_ask_llama,
-            answers_2=cross_ask_qwen
+            clean_paraphrases_qwen=clean_paraphrases_qwen,
+            clean_paraphrases_llama=clean_paraphrases_llama,
+            answers_llama=cross_ask_llama,
+            answers_qwen=cross_ask_qwen
         )
         
         cleaned_results.append(final_questions_answers)
