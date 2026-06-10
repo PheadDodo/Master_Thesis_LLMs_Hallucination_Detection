@@ -6,7 +6,7 @@ import time
 
 import config
 
-from utils import load_json, save_results
+from data_utils import load_json, save_results
 
 from semantic_entropy import EntailmentDeberta, SemanticEntropyAnalyzer
 

@@ -8,8 +8,8 @@ import torch
 import config
 
 from utils import load_llm
-from utils import load_json
-from utils import save_results
+from data_utils import load_json
+from data_utils import save_results
 from utils import ask
 from prompt_template import output_prompt
 

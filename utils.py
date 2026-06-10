@@ -1,7 +1,6 @@
 import os
 import re
 import warnings
-import json
 import numpy as np
 import logging
 import unicodedata
@@ -69,18 +68,6 @@ def load_llm(model_path, load_in_8bit=True, dtype=torch.float16, device_map="aut
 #         torch.cuda.empty_cache()
 #         torch.cuda.ipc_collect()
 #     print("Model unloaded and memory freed.")
-
-
-def load_json(path):
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
-    
-
-def save_results(results, output_path):
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(results, f, ensure_ascii=False, indent=2)
-    print(f"Saved {len(results)} entries to {output_path}")
-    
 
 
 def paraphrase_question(llm, tokenizer, original_q, prompt_template,

@@ -1,4 +1,16 @@
+import json
 import re
+
+
+def load_json(path):
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_results(results, output_path):
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(results, f, ensure_ascii=False, indent=2)
+    print(f"Saved {len(results)} entries to {output_path}")
 
 
 def select_verified_examples(sample):

@@ -5,6 +5,8 @@ import argparse
 import time
 
 import config
+from data_utils import load_json
+from data_utils import save_results
 from data_utils import select_verified_examples
 
 
@@ -96,9 +98,7 @@ def main():
 
     from prompt_template import output_prompt
     from utils import ask
-    from utils import load_json
     from utils import load_llm
-    from utils import save_results
 
     args = parse_args()
 

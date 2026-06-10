@@ -5,7 +5,10 @@ import argparse
 import time
 
 import config
-from data_utils import append_valid_paraphrases, select_verified_examples
+from data_utils import append_valid_paraphrases
+from data_utils import load_json
+from data_utils import save_results
+from data_utils import select_verified_examples
 
 
 def parse_args(argv=None):
@@ -59,10 +62,8 @@ def main():
     from prompt_template import paraphrase_prompt, output_prompt, paraphrases_check
     from utils import ask
     from utils import check_meaning
-    from utils import load_json
     from utils import load_llm
     from utils import paraphrase_question
-    from utils import save_results
 
     args = parse_args()
     llm_path_llama = args.llm_llama_path
