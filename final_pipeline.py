@@ -11,15 +11,20 @@ PIPELINE_STAGES = [
 ]
 
 
-def run_script(script_name):
-    start_time = time.time()
+def run_script(
+    script_name,
+    runner=subprocess.run,
+    executable=sys.executable,
+    timer=time.time,
+):
+    start_time = timer()
     print(f"Running {script_name} ...")
     try:
-        subprocess.run([sys.executable, script_name], check=True)
+        runner([executable, script_name], check=True)
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"{script_name} failed with code {e.returncode}") from e
     
-    elapsed = time.time() - start_time
+    elapsed = timer() - start_time
     print(f"Finished {script_name} in {elapsed:.2f} seconds")
 
 
