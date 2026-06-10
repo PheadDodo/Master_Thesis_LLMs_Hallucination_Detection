@@ -45,6 +45,13 @@ def compute_semantic_entropy_results(
     }
 
 
+def save_semantic_entropy_results(results, args, save_fn=save_results):
+    save_fn(results["cp"], args.output_path_cp_se)
+    save_fn(results["cp_fixed"], args.output_path_cp_fixed_se)
+    save_fn(results["llama"], args.output_path_llama_se)
+    save_fn(results["qwen"], args.output_path_qwen_se)
+
+
 def main():
     from semantic_entropy import EntailmentDeberta, SemanticEntropyAnalyzer
 
@@ -69,10 +76,7 @@ def main():
         samples_cp_fixed=samples_cp_fixed,
     )
     
-    save_results(results["cp"], args.output_path_cp_se)
-    save_results(results["cp_fixed"], args.output_path_cp_fixed_se)
-    save_results(results["llama"], args.output_path_llama_se)
-    save_results(results["qwen"], args.output_path_qwen_se)
+    save_semantic_entropy_results(results, args)
     
     elapsed = time.time() - start_time
     print(f"Total processing time: {elapsed :.2f} seconds")
