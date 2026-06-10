@@ -28,8 +28,8 @@ def run_script(
     print(f"Finished {script_name} in {elapsed:.2f} seconds")
 
 
-def run_pipeline(run_fn=run_script):
-    for script_name in PIPELINE_STAGES:
+def run_pipeline(stages=PIPELINE_STAGES, run_fn=run_script):
+    for script_name in stages:
         run_fn(script_name)
 
 
