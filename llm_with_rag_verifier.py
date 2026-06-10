@@ -1,14 +1,40 @@
 import os
 import re
-import json
 import string
 from typing import List, Dict, Any, Tuple
 
-import torch
-import torch.nn.functional as F
-from sentence_transformers import SentenceTransformer
-from transformers import AutoTokenizer, AutoModelForCausalLM
 #from transformers import HybridCache
+
+
+ABSTAIN_PATTERNS = [
+    "i don't know",
+    "i dont know",
+    "i do not know",
+    "not sure",
+    "unknown",
+    "cannot determine",
+    "can't determine",
+    "unable to answer",
+    "no answer",
+    "insufficient information",
+    "i have no idea",
+    "don't know",
+    "do not know",
+]
+
+
+def normalize_text(text: str) -> str:
+    if text is None:
+        return ""
+    return re.sub(r"\s+", " ", text.strip().lower())
+
+
+def is_abstain_answer(text: str) -> bool:
+    text = normalize_text(text)
+    if not text:
+        return True
+
+    return any(pattern == text or pattern in text for pattern in ABSTAIN_PATTERNS)
 
 
 # =========================
@@ -17,12 +43,15 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 
 class BGERetriever:
     def __init__(self, model_name: str = "BAAI/bge-large-en-v1.5", device: str = None):
+        import torch
+        from sentence_transformers import SentenceTransformer
+
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
         self.device = device
         self.model = SentenceTransformer(model_name, device=device)
 
-    def encode_passages(self, passages: List[str], batch_size: int = 32) -> torch.Tensor:
+    def encode_passages(self, passages: List[str], batch_size: int = 32):
         emb = self.model.encode(
             passages,
             batch_size=batch_size,
@@ -32,7 +61,7 @@ class BGERetriever:
         )
         return emb
 
-    def encode_query(self, query: str) -> torch.Tensor:
+    def encode_query(self, query: str):
         # BGE recommends instruction-like query prefix
         query_text = f"Represent this sentence for searching relevant passages: {query}"
         emb = self.model.encode(
@@ -52,6 +81,8 @@ class BGERetriever:
     ) -> List[Dict[str, Any]]:
         if not chunks:
             return []
+
+        import torch
 
         passages = [c["text"] for c in chunks]
         passage_emb = self.encode_passages(passages, batch_size=batch_size)
@@ -346,6 +377,9 @@ Label:"""
 
 class LLMVerifier:
     def __init__(self, model_name: str, do_sample: bool = False, temperature: float = 0.0, top_p: float = 1.0):
+        import torch
+        from transformers import AutoTokenizer, AutoModelForCausalLM
+
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
@@ -361,31 +395,10 @@ class LLMVerifier:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
     def _normalize_text(self, text: str) -> str:
-        if text is None:
-            return ""
-        return re.sub(r"\s+", " ", text.strip().lower())
+        return normalize_text(text)
 
     def _is_abstain_answer(self, text: str) -> bool:
-        text = self._normalize_text(text)
-        if not text:
-            return True
-
-        patterns = [
-            "i don't know",
-            "i dont know",
-            "i do not know",
-            "not sure",
-            "unknown",
-            "cannot determine",
-            "can't determine",
-            "unable to answer",
-            "no answer",
-            "insufficient information",
-            "i have no idea",
-            "don't know",
-            "do not know",
-        ]
-        return any(p == text or p in text for p in patterns)
+        return is_abstain_answer(text)
 
     def _parse_label(self, output_text: str) -> str:
         text = output_text.strip().upper()
@@ -412,6 +425,8 @@ class LLMVerifier:
         return "PARSE_ERROR"
 
     def generate_label(self, prompt: str, candidate_answer: str = None, max_new_tokens: int = 3) -> str:
+        import torch
+
         if candidate_answer is not None and self._is_abstain_answer(candidate_answer):
             return "ABSTAIN"
 
