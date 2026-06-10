@@ -30,6 +30,15 @@ def parse_args(argv=None):
     return parser.parse_args(argv)
 
 
+def load_semantic_entropy_inputs(args, load_fn=load_json):
+    return {
+        "llama": load_fn(args.output_path_llama),
+        "qwen": load_fn(args.output_path_qwen),
+        "cp": load_fn(args.output_path_cp),
+        "cp_fixed": load_fn(args.output_path_cp_fixed),
+    }
+
+
 def compute_semantic_entropy_results(
     analyzer,
     samples_llama,
@@ -60,20 +69,17 @@ def main():
     # load samples
     start_time = time.time()
     
-    samples_llama = load_json(args.output_path_llama)
-    samples_qwen = load_json(args.output_path_qwen)
-    samples_cp = load_json(args.output_path_cp)
-    samples_cp_fixed = load_json(args.output_path_cp_fixed)
+    samples = load_semantic_entropy_inputs(args)
     
     se_analyzer = SemanticEntropyAnalyzer(entailment_model=EntailmentDeberta(verbose=False))
     print("Initialized Semantic Entropy Analyzer")
 
     results = compute_semantic_entropy_results(
         analyzer=se_analyzer,
-        samples_llama=samples_llama,
-        samples_qwen=samples_qwen,
-        samples_cp=samples_cp,
-        samples_cp_fixed=samples_cp_fixed,
+        samples_llama=samples["llama"],
+        samples_qwen=samples["qwen"],
+        samples_cp=samples["cp"],
+        samples_cp_fixed=samples["cp_fixed"],
     )
     
     save_semantic_entropy_results(results, args)
