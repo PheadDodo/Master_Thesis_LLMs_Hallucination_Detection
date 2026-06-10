@@ -6,9 +6,7 @@ import time
 
 import config
 
-from utils import load_json, save_results
-
-from llm_with_rag_verifier import BGERetriever, LLMVerifier, RAGVerificationPipeline
+from data_utils import load_json, save_results
 
 
 def parse_args():
@@ -36,8 +34,19 @@ def parse_args():
     return parser.parse_args()
 
 
+def add_hallucination_labels(datasets):
+    for dataset in datasets:
+        for row in dataset:
+            row["is_hallucinating_true"] = (
+                0
+                if row["gold_correct"] or row["rag_verification"] == "ABSTAIN"
+                else 1
+            )
+
 
 def main():
+    from llm_with_rag_verifier import BGERetriever, LLMVerifier, RAGVerificationPipeline
+
     args = parse_args()
     
     start_time = time.time()
@@ -73,9 +82,7 @@ def main():
     )
     
     # label ground truth is_hallucinating_true based on gold alias matched, 0 if correct/abstain, 1 if incorrect
-    for dataset in [final_data_cp_fixed, final_baseline_llama, final_baseline_qwen]:
-        for i in dataset:
-            i["is_hallucinating_true"] = 0 if i["gold_correct"] or i["rag_verification"] == "ABSTAIN" else 1
+    add_hallucination_labels([final_data_cp_fixed, final_baseline_llama, final_baseline_qwen])
     
     #save_results(final_data_cp, args.output_path_final_cp)
     save_results(final_baseline_llama, args.output_path_final_llama)
