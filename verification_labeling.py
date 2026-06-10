@@ -49,6 +49,10 @@ def select_verification_examples(triviaqa_rows, cp_fixed_sample):
     return [ex for ex in triviaqa_rows if ex["QuestionId"] in sample_ids]
 
 
+def has_paraphrases(sample):
+    return sample[0].get("paraphrases") is not None
+
+
 def main():
     from llm_with_rag_verifier import BGERetriever, LLMVerifier, RAGVerificationPipeline
 
@@ -74,7 +78,7 @@ def main():
     data = select_verification_examples(data_all, cp_fixed_sample)
     print(f"Loaded {len(data)} verified question-answer pairs for verification labeling")
     
-    if cp_fixed_sample[0].get("paraphrases") is not None:
+    if has_paraphrases(cp_fixed_sample):
         paraphrases_check = True
         print("Paraphrases are included in the sample.")
     else:
