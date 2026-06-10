@@ -2,6 +2,15 @@ import subprocess
 import sys
 import time
 
+
+PIPELINE_STAGES = [
+    "cross_prompting.py",
+    "cross_prompting_fixed.py",
+    "compute_se.py",
+    "verification_labeling.py",
+]
+
+
 def run_script(script_name):
     start_time = time.time()
     print(f"Running {script_name} ...")
@@ -13,11 +22,14 @@ def run_script(script_name):
     elapsed = time.time() - start_time
     print(f"Finished {script_name} in {elapsed:.2f} seconds")
 
+
+def run_pipeline(run_fn=run_script):
+    for script_name in PIPELINE_STAGES:
+        run_fn(script_name)
+
+
 def main():
-    run_script("cross_prompting.py")
-    run_script("cross_prompting_fixed.py")
-    run_script("compute_se.py")
-    run_script("verification_labeling.py")
+    run_pipeline()
     
 if __name__ == "__main__":
     main()
