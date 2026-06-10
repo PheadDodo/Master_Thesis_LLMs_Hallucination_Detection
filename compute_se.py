@@ -30,6 +30,21 @@ def parse_args(argv=None):
     return parser.parse_args(argv)
 
 
+def compute_semantic_entropy_results(
+    analyzer,
+    samples_llama,
+    samples_qwen,
+    samples_cp,
+    samples_cp_fixed,
+):
+    return {
+        "cp": analyzer.process_sample_collection(samples_cp),
+        "cp_fixed": analyzer.process_sample_collection(samples_cp_fixed),
+        "llama": analyzer.baseline_semantic_entropy(samples_llama),
+        "qwen": analyzer.baseline_semantic_entropy(samples_qwen),
+    }
+
+
 def main():
     from semantic_entropy import EntailmentDeberta, SemanticEntropyAnalyzer
 
@@ -46,15 +61,18 @@ def main():
     se_analyzer = SemanticEntropyAnalyzer(entailment_model=EntailmentDeberta(verbose=False))
     print("Initialized Semantic Entropy Analyzer")
 
-    cp_results = se_analyzer.process_sample_collection(samples_cp)
-    cp_fixed_results = se_analyzer.process_sample_collection(samples_cp_fixed)
-    baseline_llama_results = se_analyzer.baseline_semantic_entropy(samples_llama)
-    baseline_qwen_results = se_analyzer.baseline_semantic_entropy(samples_qwen)
+    results = compute_semantic_entropy_results(
+        analyzer=se_analyzer,
+        samples_llama=samples_llama,
+        samples_qwen=samples_qwen,
+        samples_cp=samples_cp,
+        samples_cp_fixed=samples_cp_fixed,
+    )
     
-    save_results(cp_results, args.output_path_cp_se)
-    save_results(cp_fixed_results, args.output_path_cp_fixed_se)
-    save_results(baseline_llama_results, args.output_path_llama_se)
-    save_results(baseline_qwen_results, args.output_path_qwen_se)
+    save_results(results["cp"], args.output_path_cp_se)
+    save_results(results["cp_fixed"], args.output_path_cp_fixed_se)
+    save_results(results["llama"], args.output_path_llama_se)
+    save_results(results["qwen"], args.output_path_qwen_se)
     
     elapsed = time.time() - start_time
     print(f"Total processing time: {elapsed :.2f} seconds")
