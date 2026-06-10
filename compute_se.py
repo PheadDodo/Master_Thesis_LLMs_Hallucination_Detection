@@ -8,10 +8,8 @@ import config
 
 from data_utils import load_json, save_results
 
-from semantic_entropy import EntailmentDeberta, SemanticEntropyAnalyzer
 
-
-def parse_args():
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description="Compute semantic entropy and select final answers"
     )
@@ -29,10 +27,12 @@ def parse_args():
     parser.add_argument("--output_path_cp_fixed_se", type=str, default=config.OUTPUT_PATH_CP_FIXED_SE)
 
 
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def main():
+    from semantic_entropy import EntailmentDeberta, SemanticEntropyAnalyzer
+
     args = parse_args()
     
     # load samples
