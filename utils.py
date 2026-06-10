@@ -207,52 +207,5 @@ def check_meaning(llm, tokenizer, original_q, paraphrases, prompt_template, max_
     return results
 
 
-def append_valid_paraphrases(ex, paraphrases, meaning_results):
-    question_template = {
-        "original": [],
-        "paraphrases": []
-    }
-
-    original_question = ex.get("Question", "").strip()
-    if not original_question:
-        return question_template
-
-    valid_paraphrases = []
-    for paraphrase, verdict in zip(paraphrases, meaning_results):
-        first_word = ""
-        if isinstance(verdict, str):
-            match = re.search(r"[A-Za-z]+", verdict.strip().lower())
-            first_word = match.group(0) if match else ""
-
-        if first_word == "yes":
-            cleaned = paraphrase.strip()
-            if cleaned and cleaned.lower() != original_question.lower():
-                valid_paraphrases.append(cleaned)
-
-    question_template["original"].append(original_question)
-    question_template["paraphrases"].append(valid_paraphrases)
-
-    return question_template
-
-
-def cleaned_question_answers(original_q, question_id, clean_paraphrases_1, clean_paraphrases_2, 
-                             answers_1, answers_2):
-    return {
-        "question_id": question_id,
-        "original": original_q,
-        "paraphrases_generated_llama": clean_paraphrases_2,
-        "paraphrases_generated_qwen": clean_paraphrases_1,
-        "paraphrases": clean_paraphrases_1 + clean_paraphrases_2,
-        "answers_responsed_llama": answers_1,
-        "answers_responsed_qwen": answers_2,
-        "answers": answers_1 + answers_2,
-    }
-
-
-
-
-
-
-
 
 
