@@ -44,6 +44,11 @@ def add_hallucination_labels(datasets):
             )
 
 
+def select_verification_examples(triviaqa_rows, cp_fixed_sample):
+    sample_ids = {ex["question_id"] for ex in cp_fixed_sample}
+    return [ex for ex in triviaqa_rows if ex["QuestionId"] in sample_ids]
+
+
 def main():
     from llm_with_rag_verifier import BGERetriever, LLMVerifier, RAGVerificationPipeline
 
@@ -66,8 +71,7 @@ def main():
     baseline_llama = load_json(args.output_path_llama_se)
     baseline_qwen = load_json(args.output_path_qwen_se)
 
-    sample_ids = set(ex["question_id"] for ex in cp_fixed_sample)
-    data = [ex for ex in data_all if ex["QuestionId"] in sample_ids]
+    data = select_verification_examples(data_all, cp_fixed_sample)
     print(f"Loaded {len(data)} verified question-answer pairs for verification labeling")
     
     if cp_fixed_sample[0].get("paraphrases") is not None:
