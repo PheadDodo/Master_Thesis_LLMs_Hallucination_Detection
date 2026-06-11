@@ -93,6 +93,59 @@ def sample_baseline_answers(
     return baseline_results
 
 
+def sample_cross_prompting_fixed_outputs(
+    data,
+    llm_llama,
+    tokenizer_llama,
+    llm_qwen,
+    tokenizer_qwen,
+    ask_fn,
+    prompt_template,
+    n,
+    temperature,
+    top_p,
+    progress_fn=None,
+):
+    baseline_results_llama = []
+    baseline_results_qwen = []
+    total = len(data)
+
+    for index, ex in enumerate(data, start=1):
+        baseline_llama = sample_baseline_answers(
+            data=[ex],
+            llm=llm_llama,
+            tokenizer=tokenizer_llama,
+            ask_fn=ask_fn,
+            prompt_template=prompt_template,
+            n=n,
+            temperature=temperature,
+            top_p=top_p,
+        )[0]
+        baseline_qwen = sample_baseline_answers(
+            data=[ex],
+            llm=llm_qwen,
+            tokenizer=tokenizer_qwen,
+            ask_fn=ask_fn,
+            prompt_template=prompt_template,
+            n=n,
+            temperature=temperature,
+            top_p=top_p,
+        )[0]
+
+        baseline_results_llama.append(baseline_llama)
+        baseline_results_qwen.append(baseline_qwen)
+
+        if progress_fn is not None:
+            progress_fn(index, total, baseline_llama, baseline_qwen)
+
+    cp_fixed = build_cross_prompting_fixed(
+        baseline_results_llama,
+        baseline_results_qwen,
+    )
+
+    return cp_fixed, baseline_results_llama, baseline_results_qwen
+
+
 def main():
     import torch
 
@@ -126,43 +179,26 @@ def main():
 
     start_time = time.time()
 
-    baseline_results_llama = []
-    baseline_results_qwen = []
-    for ex in data[:]:  # number of questions to sample for the baseline method
-        original_q = ex["Question"]
-        question_id = ex["QuestionId"]
-
-        n = args.n # sampling n answers per question for the baseline method
-
-        baseline_llama = sample_baseline_answers(
-            data=[ex],
-            llm=llm_llama,
-            tokenizer=tokenizer_llama,
-            ask_fn=ask,
-            prompt_template=output_prompt,
-            n=n,
-            temperature=args.temperature,
-            top_p=args.top_p,
-        )[0]
-        baseline_qwen = sample_baseline_answers(
-            data=[ex],
-            llm=llm_qwen,
-            tokenizer=tokenizer_qwen,
-            ask_fn=ask,
-            prompt_template=output_prompt,
-            n=n,
-            temperature=args.temperature,
-            top_p=args.top_p,
-        )[0]
-
-        baseline_results_llama.append(baseline_llama)
-        baseline_results_qwen.append(baseline_qwen)
-
+    def print_progress(index, total, baseline_llama, baseline_qwen):
         print(
-            f"[{len(baseline_results_llama)}/{len(data)}] QID={question_id} | n={n} | answers_llama={baseline_llama['answers']} | answers_qwen={baseline_qwen['answers']}"
+            f"[{index}/{total}] QID={baseline_llama['question_id']} | "
+            f"n={args.n} | answers_llama={baseline_llama['answers']} | "
+            f"answers_qwen={baseline_qwen['answers']}"
         )
-    
-    cp_fixed = build_cross_prompting_fixed(baseline_results_llama, baseline_results_qwen)
+
+    cp_fixed, baseline_results_llama, baseline_results_qwen = sample_cross_prompting_fixed_outputs(
+        data=data,
+        llm_llama=llm_llama,
+        tokenizer_llama=tokenizer_llama,
+        llm_qwen=llm_qwen,
+        tokenizer_qwen=tokenizer_qwen,
+        ask_fn=ask,
+        prompt_template=output_prompt,
+        n=args.n,
+        temperature=args.temperature,
+        top_p=args.top_p,
+        progress_fn=print_progress,
+    )
 
     save_results(cp_fixed, args.output_path_cp_fixed)
     save_results(baseline_results_llama, args.output_path_llama)

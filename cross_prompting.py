@@ -56,6 +56,120 @@ def build_cross_prompting_record(
     }
 
 
+def run_cross_prompting_records(
+    data,
+    llm_llama,
+    tokenizer_llama,
+    llm_qwen,
+    tokenizer_qwen,
+    paraphrase_question_fn,
+    check_meaning_fn,
+    ask_fn,
+    paraphrase_prompt,
+    output_prompt,
+    paraphrases_check_prompt,
+    n,
+    temperature,
+    top_p,
+    progress_fn=None,
+):
+    cleaned_results = []
+    total = len(data)
+
+    for index, ex in enumerate(data, start=1):
+        original_q = ex["Question"]
+        question_id = ex["QuestionId"]
+
+        generated_paraphrases_llama = paraphrase_question_fn(
+            llm=llm_llama,
+            tokenizer=tokenizer_llama,
+            original_q=original_q,
+            do_sample=True,
+            temperature=temperature,
+            top_p=top_p,
+            n=n,
+            prompt_template=paraphrase_prompt,
+        )
+        generated_paraphrases_qwen = paraphrase_question_fn(
+            llm=llm_qwen,
+            tokenizer=tokenizer_qwen,
+            original_q=original_q,
+            do_sample=True,
+            temperature=temperature,
+            top_p=top_p,
+            n=n,
+            prompt_template=paraphrase_prompt,
+        )
+
+        cross_check_llama = check_meaning_fn(
+            llm=llm_llama,
+            tokenizer=tokenizer_llama,
+            original_q=original_q,
+            paraphrases=generated_paraphrases_qwen,
+            prompt_template=paraphrases_check_prompt,
+            do_sample=True,
+            temperature=temperature,
+            top_p=top_p,
+        )
+        cross_check_qwen = check_meaning_fn(
+            llm=llm_qwen,
+            tokenizer=tokenizer_qwen,
+            original_q=original_q,
+            paraphrases=generated_paraphrases_llama,
+            prompt_template=paraphrases_check_prompt,
+            do_sample=True,
+            temperature=temperature,
+            top_p=top_p,
+        )
+
+        cleaned_cross_llama = append_valid_paraphrases(
+            ex,
+            generated_paraphrases_qwen,
+            cross_check_llama,
+        )
+        cleaned_cross_qwen = append_valid_paraphrases(
+            ex,
+            generated_paraphrases_llama,
+            cross_check_qwen,
+        )
+        clean_paraphrases_qwen = cleaned_cross_llama["paraphrases"][0]
+        clean_paraphrases_llama = cleaned_cross_qwen["paraphrases"][0]
+
+        cross_ask_llama = ask_fn(
+            llm=llm_llama,
+            tokenizer=tokenizer_llama,
+            paraphrases=questions_for_answering(original_q, clean_paraphrases_qwen),
+            prompt_template=output_prompt,
+            do_sample=True,
+            temperature=temperature,
+            top_p=top_p,
+        )
+        cross_ask_qwen = ask_fn(
+            llm=llm_qwen,
+            tokenizer=tokenizer_qwen,
+            paraphrases=questions_for_answering(original_q, clean_paraphrases_llama),
+            prompt_template=output_prompt,
+            do_sample=True,
+            temperature=temperature,
+            top_p=top_p,
+        )
+
+        record = build_cross_prompting_record(
+            original_q=original_q,
+            question_id=question_id,
+            clean_paraphrases_qwen=clean_paraphrases_qwen,
+            clean_paraphrases_llama=clean_paraphrases_llama,
+            answers_llama=cross_ask_llama,
+            answers_qwen=cross_ask_qwen,
+        )
+        cleaned_results.append(record)
+
+        if progress_fn is not None:
+            progress_fn(index, total, question_id, cross_ask_llama, cross_ask_qwen)
+
+    return cleaned_results
+
+
 def main():
     import torch
 
@@ -95,100 +209,29 @@ def main():
     # run cross prompting for each question-answer pair
     start_time = time.time()
     
-    cleaned_results = []
-    for ex in data_verified[:]:
-        original_q = ex["Question"]
-        question_id = ex["QuestionId"]
-        
-        n = args.n # number of paraphrases to generate per question for cross prompting
-        
-        # generate paraphrased questions
-        generated_paraphrases_llama = paraphrase_question(
-            llm=llm_llama,
-            tokenizer=tokenizer_llama,
-            original_q=original_q,
-            do_sample=True,
-            temperature=args.temperature,
-            top_p=args.top_p,
-            n=n,
-            prompt_template=paraphrase_prompt
-            )
-        generated_paraphrases_qwen = paraphrase_question(
-            llm=llm_qwen,
-            tokenizer=tokenizer_qwen,
-            original_q=original_q,
-            do_sample=True,
-            temperature=args.temperature,
-            top_p=args.top_p,
-            n=n,
-            prompt_template=paraphrase_prompt
-            )
-        
-        # llama checks qwen's paraphrases
-        cross_check_llama = check_meaning(
-            llm=llm_llama,
-            tokenizer=tokenizer_llama,
-            original_q=original_q,
-            paraphrases=generated_paraphrases_qwen,
-            prompt_template=paraphrases_check,
-            do_sample=True,
-            temperature=args.temperature,
-            top_p=args.top_p,
-            )
-        # qwen checks llama's paraphrases
-        cross_check_qwen = check_meaning(
-            llm=llm_qwen,
-            tokenizer=tokenizer_qwen,
-            original_q=original_q,
-            paraphrases=generated_paraphrases_llama,
-            prompt_template=paraphrases_check,
-            do_sample=True,
-            temperature=args.temperature,
-            top_p=args.top_p,
-            )
-        
-        # save same-meaning paraphrases according to cross-check results
-        cleaned_cross_llama = append_valid_paraphrases(ex, generated_paraphrases_qwen, cross_check_llama)
-        cleaned_cross_qwen = append_valid_paraphrases(ex, generated_paraphrases_llama, cross_check_qwen)
-        clean_paraphrases_qwen = cleaned_cross_llama["paraphrases"][0]
-        clean_paraphrases_llama = cleaned_cross_qwen["paraphrases"][0]
-        
-        # cross prompting for answers, i.e. ask llama with qwen's cleaned paraphrases and ask qwen with llama's cleaned paraphrases
-        cross_ask_llama = ask(
-            llm=llm_llama, 
-            tokenizer=tokenizer_llama, 
-            paraphrases=questions_for_answering(original_q, clean_paraphrases_qwen),
-            prompt_template=output_prompt,
-            do_sample=True,
-            temperature=args.temperature,
-            top_p=args.top_p,
-        )
-        
-        cross_ask_qwen = ask(
-            llm=llm_qwen, 
-            tokenizer=tokenizer_qwen, 
-            paraphrases=questions_for_answering(original_q, clean_paraphrases_llama),
-            prompt_template=output_prompt,
-            do_sample=True,
-            temperature=args.temperature,
-            top_p=args.top_p,
-        )
-        
-        # save cleaned paraphrases and answers
-        final_questions_answers = build_cross_prompting_record(
-            original_q=original_q,
-            question_id=question_id,
-            clean_paraphrases_qwen=clean_paraphrases_qwen,
-            clean_paraphrases_llama=clean_paraphrases_llama,
-            answers_llama=cross_ask_llama,
-            answers_qwen=cross_ask_qwen
-        )
-        
-        cleaned_results.append(final_questions_answers)
-        
+    def print_progress(index, total, question_id, answers_llama, answers_qwen):
         print(
-            f"[{len(cleaned_results)}/{len(data_verified)}] QID={question_id} | n={n} | answers_llama={cross_ask_llama} | answers_qwen={cross_ask_qwen}"
+            f"[{index}/{total}] QID={question_id} | n={args.n} | "
+            f"answers_llama={answers_llama} | answers_qwen={answers_qwen}"
         )
+
+    cleaned_results = run_cross_prompting_records(
+        data=data_verified,
+        llm_llama=llm_llama,
+        tokenizer_llama=tokenizer_llama,
+        llm_qwen=llm_qwen,
+        tokenizer_qwen=tokenizer_qwen,
+        paraphrase_question_fn=paraphrase_question,
+        check_meaning_fn=check_meaning,
+        ask_fn=ask,
+        paraphrase_prompt=paraphrase_prompt,
+        output_prompt=output_prompt,
+        paraphrases_check_prompt=paraphrases_check,
+        n=args.n,
+        temperature=args.temperature,
+        top_p=args.top_p,
+        progress_fn=print_progress,
+    )
     
     #save results, do_sample=True, temperature=0.5, top_p=0.95
     save_results(cleaned_results, args.output_path_cp)
