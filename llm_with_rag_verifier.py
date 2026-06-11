@@ -97,6 +97,30 @@ def build_verification_result(example, candidate_answer, rag_label, retrieved):
     }
 
 
+def verify_candidate_answer_with_retrieval(
+    example: Dict[str, Any],
+    candidate_answer: str,
+    build_chunks_fn,
+    retrieve_fn,
+    generate_label_fn,
+    is_abstain_fn,
+    top_k: int = None,
+) -> Dict[str, Any]:
+    question = example["Question"]
+
+    if is_abstain_fn(candidate_answer):
+        return build_abstain_verification_result(example, candidate_answer)
+
+    chunks = build_chunks_fn(example)
+    retrieval_query = build_verification_query(question, candidate_answer)
+    retrieved = retrieve_fn(retrieval_query, chunks, top_k)
+
+    prompt = build_verification_prompt(question, candidate_answer, retrieved)
+    rag_label = generate_label_fn(prompt, candidate_answer)
+
+    return build_verification_result(example, candidate_answer, rag_label, retrieved)
+
+
 def build_verification_query(question: str, candidate_answer: str) -> str:
     return f"Question: {question} Candidate answer: {candidate_answer}"
 
@@ -225,6 +249,40 @@ def build_verified_baseline_record(result, final_sample):
         "retrieved_chunks": result["retrieved_chunks"],
         "gold_aliases": result["gold_aliases"],
     }
+
+
+def run_verification_records(
+    data,
+    final_sample,
+    final_baseline_llama,
+    final_baseline_qwen,
+    verify_cp_fn,
+    verify_baseline_fn,
+    print_record_fn,
+    top_k: int = None,
+    paraphrases: bool = True,
+):
+    final_data_cp = []
+    final_baseline_llama_data = []
+    final_baseline_qwen_data = []
+    total = len(data)
+
+    for i, (ex, fs, llama_fs, qwen_fs) in enumerate(
+        zip(data, final_sample, final_baseline_llama, final_baseline_qwen)
+    ):
+        record_cp = verify_cp_fn(ex, fs, top_k, paraphrases)
+        record_llama = verify_baseline_fn(ex, llama_fs, top_k)
+        record_qwen = verify_baseline_fn(ex, qwen_fs, top_k)
+
+        final_data_cp.append(record_cp)
+        final_baseline_llama_data.append(record_llama)
+        final_baseline_qwen_data.append(record_qwen)
+
+        print_record_fn(i + 1, total, record_cp)
+        print_record_fn(i + 1, total, record_llama)
+        print_record_fn(i + 1, total, record_qwen)
+
+    return final_data_cp, final_baseline_llama_data, final_baseline_qwen_data
 
 
 # =========================
@@ -366,20 +424,25 @@ class RAGVerificationPipeline:
         top_k: int = None,
     ) -> Dict[str, Any]:
         top_k = top_k if top_k is not None else self.top_k
-        question = example["Question"]
-        normalized_aliases = example["Answer"].get("NormalizedAliases", [])
-
-        if self.verifier is not None and self.verifier._is_abstain_answer(candidate_answer):
-            return build_abstain_verification_result(example, candidate_answer)
-
-        chunks = self.build_chunks_from_entity_pages(example)
-        retrieval_query = self.build_verification_query(question, candidate_answer)
-        retrieved = self.retriever.retrieve(retrieval_query, chunks, top_k=top_k)
-
-        prompt = self.build_verification_prompt(question, candidate_answer, retrieved)
-        rag_label = self.verifier.generate_label(prompt, candidate_answer=candidate_answer)
-
-        return build_verification_result(example, candidate_answer, rag_label, retrieved)
+        return verify_candidate_answer_with_retrieval(
+            example,
+            candidate_answer,
+            self.build_chunks_from_entity_pages,
+            lambda query, chunks, top_k: self.retriever.retrieve(
+                query,
+                chunks,
+                top_k=top_k,
+            ),
+            lambda prompt, candidate_answer: self.verifier.generate_label(
+                prompt,
+                candidate_answer=candidate_answer,
+            ),
+            lambda answer: (
+                self.verifier is not None
+                and self.verifier._is_abstain_answer(answer)
+            ),
+            top_k=top_k,
+        )
 
     # ------------------------------------------------------------------
     # Record builders
@@ -423,27 +486,17 @@ class RAGVerificationPipeline:
         top_k: int = None,
         paraphrases: bool = True,
     ):
-        final_data_cp = []
-        final_baseline_llama_data = []
-        final_baseline_qwen_data = []
-        total = len(data)
-
-        for i, (ex, fs, llama_fs, qwen_fs) in enumerate(
-            zip(data, final_sample, final_baseline_llama, final_baseline_qwen)
-        ):
-            record_cp = self.verify_and_build_record_cp(ex, fs, top_k, paraphrases)
-            record_llama = self.verify_and_build_record_baseline(ex, llama_fs, top_k)
-            record_qwen = self.verify_and_build_record_baseline(ex, qwen_fs, top_k)
-
-            final_data_cp.append(record_cp)
-            final_baseline_llama_data.append(record_llama)
-            final_baseline_qwen_data.append(record_qwen)
-
-            self.print_record(i + 1, total, record_cp)
-            self.print_record(i + 1, total, record_llama)
-            self.print_record(i + 1, total, record_qwen)
-
-        return final_data_cp, final_baseline_llama_data, final_baseline_qwen_data
+        return run_verification_records(
+            data,
+            final_sample,
+            final_baseline_llama,
+            final_baseline_qwen,
+            self.verify_and_build_record_cp,
+            self.verify_and_build_record_baseline,
+            self.print_record,
+            top_k=top_k,
+            paraphrases=paraphrases,
+        )
 
 
 # =========================
