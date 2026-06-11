@@ -133,6 +133,11 @@ def run_baseline_records(
     return baseline_results_llama, baseline_results_qwen
 
 
+def save_baseline_results(llama_results, qwen_results, args, save_fn=save_results):
+    save_fn(llama_results, args.output_path_llama)
+    save_fn(qwen_results, args.output_path_qwen)
+
+
 def main():
     import torch
 
@@ -185,8 +190,7 @@ def main():
         progress_fn=print_progress,
     )
 
-    save_results(baseline_results_llama, args.output_path_llama)
-    save_results(baseline_results_qwen, args.output_path_qwen)
+    save_baseline_results(baseline_results_llama, baseline_results_qwen, args)
 
     elapsed = time.time() - start_time
     print(f"Optional baseline completed in {elapsed:.2f}s ({elapsed/60:.2f} min)")
