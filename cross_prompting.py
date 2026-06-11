@@ -46,8 +46,13 @@ def load_cross_prompting_examples(
     return select_fn(sample)
 
 
-def load_cross_prompting_models(args, load_llm_fn, dtype):
-    return load_llama_qwen_models(args, load_llm_fn, dtype)
+def load_cross_prompting_models(args, load_llm_fn, dtype, qwen_load_in_8bit=False):
+    return load_llama_qwen_models(
+        args,
+        load_llm_fn=load_llm_fn,
+        dtype=dtype,
+        qwen_load_in_8bit=qwen_load_in_8bit,
+    )
 
 
 def clean_cross_checked_paraphrases(
