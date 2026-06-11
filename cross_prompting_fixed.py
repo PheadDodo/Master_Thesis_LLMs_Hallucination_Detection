@@ -59,6 +59,15 @@ def build_cross_prompting_fixed(llama_data, qwen_data):
     return cp_fixed
 
 
+def load_cross_prompting_fixed_examples(
+    triviaqa_path,
+    load_fn=load_json,
+    select_fn=select_verified_examples,
+):
+    sample = load_fn(triviaqa_path)
+    return select_fn(sample)
+
+
 def sample_baseline_answers(
     data,
     llm,
@@ -199,8 +208,7 @@ def main():
 
 
     # load TriviaQA verified subset
-    sample = load_json(config.TRIVIAQA_PATH)
-    data = select_verified_examples(sample)
+    data = load_cross_prompting_fixed_examples(config.TRIVIAQA_PATH)
     print(f"Loaded {len(data)} verified question-answer pairs")
 
     start_time = time.time()

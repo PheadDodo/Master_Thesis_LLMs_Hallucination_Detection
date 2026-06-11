@@ -36,6 +36,15 @@ def questions_for_answering(original_q, valid_paraphrases):
     return valid_paraphrases if valid_paraphrases else [original_q]
 
 
+def load_cross_prompting_examples(
+    triviaqa_path,
+    load_fn=load_json,
+    select_fn=select_verified_examples,
+):
+    sample = load_fn(triviaqa_path)
+    return select_fn(sample)
+
+
 def build_cross_prompting_record(
     original_q,
     question_id,
@@ -219,8 +228,7 @@ def main():
     
     # load sample data, a verified subset of TriviaQA_rc verified-wikipedia-dev.json, 
     # which is verified by human annotators to have correct question-answer pairs
-    sample = load_json(config.TRIVIAQA_PATH)
-    data_verified = select_verified_examples(sample)
+    data_verified = load_cross_prompting_examples(config.TRIVIAQA_PATH)
 
     print(f"Loaded {len(data_verified)} verified question-answer pairs from TriviaQA_rc_verified-wikipedia-dev.json")
     
