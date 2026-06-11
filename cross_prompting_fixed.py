@@ -93,6 +93,20 @@ def sample_baseline_answers(
     return baseline_results
 
 
+def format_cross_prompting_fixed_progress(
+    index,
+    total,
+    n,
+    baseline_llama,
+    baseline_qwen,
+):
+    return (
+        f"[{index}/{total}] QID={baseline_llama['question_id']} | n={n} | "
+        f"answers_llama={baseline_llama['answers']} | "
+        f"answers_qwen={baseline_qwen['answers']}"
+    )
+
+
 def sample_cross_prompting_fixed_outputs(
     data,
     llm_llama,
@@ -180,11 +194,13 @@ def main():
     start_time = time.time()
 
     def print_progress(index, total, baseline_llama, baseline_qwen):
-        print(
-            f"[{index}/{total}] QID={baseline_llama['question_id']} | "
-            f"n={args.n} | answers_llama={baseline_llama['answers']} | "
-            f"answers_qwen={baseline_qwen['answers']}"
-        )
+        print(format_cross_prompting_fixed_progress(
+            index,
+            total,
+            args.n,
+            baseline_llama,
+            baseline_qwen,
+        ))
 
     cp_fixed, baseline_results_llama, baseline_results_qwen = sample_cross_prompting_fixed_outputs(
         data=data,

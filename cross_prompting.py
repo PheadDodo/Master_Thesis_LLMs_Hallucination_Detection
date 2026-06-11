@@ -56,6 +56,20 @@ def build_cross_prompting_record(
     }
 
 
+def format_cross_prompting_progress(
+    index,
+    total,
+    question_id,
+    n,
+    answers_llama,
+    answers_qwen,
+):
+    return (
+        f"[{index}/{total}] QID={question_id} | n={n} | "
+        f"answers_llama={answers_llama} | answers_qwen={answers_qwen}"
+    )
+
+
 def run_cross_prompting_records(
     data,
     llm_llama,
@@ -210,10 +224,14 @@ def main():
     start_time = time.time()
     
     def print_progress(index, total, question_id, answers_llama, answers_qwen):
-        print(
-            f"[{index}/{total}] QID={question_id} | n={args.n} | "
-            f"answers_llama={answers_llama} | answers_qwen={answers_qwen}"
-        )
+        print(format_cross_prompting_progress(
+            index,
+            total,
+            question_id,
+            args.n,
+            answers_llama,
+            answers_qwen,
+        ))
 
     cleaned_results = run_cross_prompting_records(
         data=data_verified,
