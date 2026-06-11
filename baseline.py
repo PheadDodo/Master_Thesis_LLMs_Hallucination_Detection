@@ -93,6 +93,15 @@ def format_baseline_progress(index, total, n, baseline_llama, baseline_qwen):
     )
 
 
+def progress_args_from_baseline_records(
+    index,
+    total,
+    baseline_llama,
+    baseline_qwen,
+):
+    return index, total, baseline_llama, baseline_qwen
+
+
 def run_baseline_records(
     data,
     n,
@@ -128,7 +137,12 @@ def run_baseline_records(
         baseline_results_qwen.append(baseline_qwen)
 
         if progress_fn is not None:
-            progress_fn(index, total, baseline_llama, baseline_qwen)
+            progress_fn(*progress_args_from_baseline_records(
+                index,
+                total,
+                baseline_llama,
+                baseline_qwen,
+            ))
 
     return baseline_results_llama, baseline_results_qwen
 

@@ -116,6 +116,15 @@ def format_cross_prompting_fixed_progress(
     )
 
 
+def progress_args_from_cross_prompting_fixed_records(
+    index,
+    total,
+    baseline_llama,
+    baseline_qwen,
+):
+    return index, total, baseline_llama, baseline_qwen
+
+
 def sample_cross_prompting_fixed_outputs(
     data,
     llm_llama,
@@ -159,7 +168,12 @@ def sample_cross_prompting_fixed_outputs(
         baseline_results_qwen.append(baseline_qwen)
 
         if progress_fn is not None:
-            progress_fn(index, total, baseline_llama, baseline_qwen)
+            progress_fn(*progress_args_from_cross_prompting_fixed_records(
+                index,
+                total,
+                baseline_llama,
+                baseline_qwen,
+            ))
 
     cp_fixed = build_cross_prompting_fixed(
         baseline_results_llama,

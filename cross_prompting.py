@@ -70,6 +70,79 @@ def clean_cross_checked_paraphrases(
     )
 
 
+def generate_cross_prompting_paraphrases(
+    original_q,
+    llm_llama,
+    tokenizer_llama,
+    llm_qwen,
+    tokenizer_qwen,
+    paraphrase_question_fn,
+    paraphrase_prompt,
+    n,
+    temperature,
+    top_p,
+):
+    generated_paraphrases_llama = paraphrase_question_fn(
+        llm=llm_llama,
+        tokenizer=tokenizer_llama,
+        original_q=original_q,
+        do_sample=True,
+        temperature=temperature,
+        top_p=top_p,
+        n=n,
+        prompt_template=paraphrase_prompt,
+    )
+    generated_paraphrases_qwen = paraphrase_question_fn(
+        llm=llm_qwen,
+        tokenizer=tokenizer_qwen,
+        original_q=original_q,
+        do_sample=True,
+        temperature=temperature,
+        top_p=top_p,
+        n=n,
+        prompt_template=paraphrase_prompt,
+    )
+
+    return generated_paraphrases_llama, generated_paraphrases_qwen
+
+
+def cross_check_generated_paraphrases(
+    original_q,
+    generated_paraphrases_llama,
+    generated_paraphrases_qwen,
+    llm_llama,
+    tokenizer_llama,
+    llm_qwen,
+    tokenizer_qwen,
+    check_meaning_fn,
+    paraphrases_check_prompt,
+    temperature,
+    top_p,
+):
+    cross_check_llama = check_meaning_fn(
+        llm=llm_llama,
+        tokenizer=tokenizer_llama,
+        original_q=original_q,
+        paraphrases=generated_paraphrases_qwen,
+        prompt_template=paraphrases_check_prompt,
+        do_sample=True,
+        temperature=temperature,
+        top_p=top_p,
+    )
+    cross_check_qwen = check_meaning_fn(
+        llm=llm_qwen,
+        tokenizer=tokenizer_qwen,
+        original_q=original_q,
+        paraphrases=generated_paraphrases_llama,
+        prompt_template=paraphrases_check_prompt,
+        do_sample=True,
+        temperature=temperature,
+        top_p=top_p,
+    )
+
+    return cross_check_llama, cross_check_qwen
+
+
 def cross_prompt_answers(
     original_q,
     clean_paraphrases_qwen,
@@ -139,6 +212,94 @@ def format_cross_prompting_progress(
     )
 
 
+def process_cross_prompting_example(
+    ex,
+    llm_llama,
+    tokenizer_llama,
+    llm_qwen,
+    tokenizer_qwen,
+    paraphrase_question_fn,
+    check_meaning_fn,
+    ask_fn,
+    paraphrase_prompt,
+    output_prompt,
+    paraphrases_check_prompt,
+    n,
+    temperature,
+    top_p,
+):
+    original_q = ex["Question"]
+    question_id = ex["QuestionId"]
+
+    generated_paraphrases_llama, generated_paraphrases_qwen = generate_cross_prompting_paraphrases(
+        original_q,
+        llm_llama,
+        tokenizer_llama,
+        llm_qwen,
+        tokenizer_qwen,
+        paraphrase_question_fn,
+        paraphrase_prompt,
+        n,
+        temperature,
+        top_p,
+    )
+
+    cross_check_llama, cross_check_qwen = cross_check_generated_paraphrases(
+        original_q,
+        generated_paraphrases_llama,
+        generated_paraphrases_qwen,
+        llm_llama,
+        tokenizer_llama,
+        llm_qwen,
+        tokenizer_qwen,
+        check_meaning_fn,
+        paraphrases_check_prompt,
+        temperature,
+        top_p,
+    )
+
+    clean_paraphrases_qwen, clean_paraphrases_llama = clean_cross_checked_paraphrases(
+        ex,
+        generated_paraphrases_qwen,
+        cross_check_llama,
+        generated_paraphrases_llama,
+        cross_check_qwen,
+    )
+
+    cross_ask_llama, cross_ask_qwen = cross_prompt_answers(
+        original_q,
+        clean_paraphrases_qwen,
+        clean_paraphrases_llama,
+        llm_llama,
+        tokenizer_llama,
+        llm_qwen,
+        tokenizer_qwen,
+        ask_fn,
+        output_prompt,
+        temperature,
+        top_p,
+    )
+
+    return build_cross_prompting_record(
+        original_q=original_q,
+        question_id=question_id,
+        clean_paraphrases_qwen=clean_paraphrases_qwen,
+        clean_paraphrases_llama=clean_paraphrases_llama,
+        answers_llama=cross_ask_llama,
+        answers_qwen=cross_ask_qwen,
+    )
+
+
+def progress_args_from_cross_prompting_record(index, total, record):
+    return (
+        index,
+        total,
+        record["question_id"],
+        record["answers_responsed_llama"],
+        record["answers_responsed_qwen"],
+    )
+
+
 def run_cross_prompting_records(
     data,
     llm_llama,
@@ -155,90 +316,32 @@ def run_cross_prompting_records(
     temperature,
     top_p,
     progress_fn=None,
+    process_example_fn=process_cross_prompting_example,
 ):
     cleaned_results = []
     total = len(data)
 
     for index, ex in enumerate(data, start=1):
-        original_q = ex["Question"]
-        question_id = ex["QuestionId"]
-
-        generated_paraphrases_llama = paraphrase_question_fn(
-            llm=llm_llama,
-            tokenizer=tokenizer_llama,
-            original_q=original_q,
-            do_sample=True,
-            temperature=temperature,
-            top_p=top_p,
+        record = process_example_fn(
+            ex=ex,
+            llm_llama=llm_llama,
+            tokenizer_llama=tokenizer_llama,
+            llm_qwen=llm_qwen,
+            tokenizer_qwen=tokenizer_qwen,
+            paraphrase_question_fn=paraphrase_question_fn,
+            check_meaning_fn=check_meaning_fn,
+            ask_fn=ask_fn,
+            paraphrase_prompt=paraphrase_prompt,
+            output_prompt=output_prompt,
+            paraphrases_check_prompt=paraphrases_check_prompt,
             n=n,
-            prompt_template=paraphrase_prompt,
-        )
-        generated_paraphrases_qwen = paraphrase_question_fn(
-            llm=llm_qwen,
-            tokenizer=tokenizer_qwen,
-            original_q=original_q,
-            do_sample=True,
             temperature=temperature,
             top_p=top_p,
-            n=n,
-            prompt_template=paraphrase_prompt,
-        )
-
-        cross_check_llama = check_meaning_fn(
-            llm=llm_llama,
-            tokenizer=tokenizer_llama,
-            original_q=original_q,
-            paraphrases=generated_paraphrases_qwen,
-            prompt_template=paraphrases_check_prompt,
-            do_sample=True,
-            temperature=temperature,
-            top_p=top_p,
-        )
-        cross_check_qwen = check_meaning_fn(
-            llm=llm_qwen,
-            tokenizer=tokenizer_qwen,
-            original_q=original_q,
-            paraphrases=generated_paraphrases_llama,
-            prompt_template=paraphrases_check_prompt,
-            do_sample=True,
-            temperature=temperature,
-            top_p=top_p,
-        )
-
-        clean_paraphrases_qwen, clean_paraphrases_llama = clean_cross_checked_paraphrases(
-            ex,
-            generated_paraphrases_qwen,
-            cross_check_llama,
-            generated_paraphrases_llama,
-            cross_check_qwen,
-        )
-
-        cross_ask_llama, cross_ask_qwen = cross_prompt_answers(
-            original_q,
-            clean_paraphrases_qwen,
-            clean_paraphrases_llama,
-            llm_llama,
-            tokenizer_llama,
-            llm_qwen,
-            tokenizer_qwen,
-            ask_fn,
-            output_prompt,
-            temperature,
-            top_p,
-        )
-
-        record = build_cross_prompting_record(
-            original_q=original_q,
-            question_id=question_id,
-            clean_paraphrases_qwen=clean_paraphrases_qwen,
-            clean_paraphrases_llama=clean_paraphrases_llama,
-            answers_llama=cross_ask_llama,
-            answers_qwen=cross_ask_qwen,
         )
         cleaned_results.append(record)
 
         if progress_fn is not None:
-            progress_fn(index, total, question_id, cross_ask_llama, cross_ask_qwen)
+            progress_fn(*progress_args_from_cross_prompting_record(index, total, record))
 
     return cleaned_results
 
