@@ -45,6 +45,66 @@ def load_cross_prompting_examples(
     return select_fn(sample)
 
 
+def clean_cross_checked_paraphrases(
+    ex,
+    generated_paraphrases_qwen,
+    cross_check_llama,
+    generated_paraphrases_llama,
+    cross_check_qwen,
+    append_fn=append_valid_paraphrases,
+):
+    cleaned_cross_llama = append_fn(
+        ex,
+        generated_paraphrases_qwen,
+        cross_check_llama,
+    )
+    cleaned_cross_qwen = append_fn(
+        ex,
+        generated_paraphrases_llama,
+        cross_check_qwen,
+    )
+
+    return (
+        cleaned_cross_llama["paraphrases"][0],
+        cleaned_cross_qwen["paraphrases"][0],
+    )
+
+
+def cross_prompt_answers(
+    original_q,
+    clean_paraphrases_qwen,
+    clean_paraphrases_llama,
+    llm_llama,
+    tokenizer_llama,
+    llm_qwen,
+    tokenizer_qwen,
+    ask_fn,
+    output_prompt,
+    temperature,
+    top_p,
+):
+    answers_llama = ask_fn(
+        llm=llm_llama,
+        tokenizer=tokenizer_llama,
+        paraphrases=questions_for_answering(original_q, clean_paraphrases_qwen),
+        prompt_template=output_prompt,
+        do_sample=True,
+        temperature=temperature,
+        top_p=top_p,
+    )
+    answers_qwen = ask_fn(
+        llm=llm_qwen,
+        tokenizer=tokenizer_qwen,
+        paraphrases=questions_for_answering(original_q, clean_paraphrases_llama),
+        prompt_template=output_prompt,
+        do_sample=True,
+        temperature=temperature,
+        top_p=top_p,
+    )
+
+    return answers_llama, answers_qwen
+
+
 def build_cross_prompting_record(
     original_q,
     question_id,
@@ -145,36 +205,26 @@ def run_cross_prompting_records(
             top_p=top_p,
         )
 
-        cleaned_cross_llama = append_valid_paraphrases(
+        clean_paraphrases_qwen, clean_paraphrases_llama = clean_cross_checked_paraphrases(
             ex,
             generated_paraphrases_qwen,
             cross_check_llama,
-        )
-        cleaned_cross_qwen = append_valid_paraphrases(
-            ex,
             generated_paraphrases_llama,
             cross_check_qwen,
         )
-        clean_paraphrases_qwen = cleaned_cross_llama["paraphrases"][0]
-        clean_paraphrases_llama = cleaned_cross_qwen["paraphrases"][0]
 
-        cross_ask_llama = ask_fn(
-            llm=llm_llama,
-            tokenizer=tokenizer_llama,
-            paraphrases=questions_for_answering(original_q, clean_paraphrases_qwen),
-            prompt_template=output_prompt,
-            do_sample=True,
-            temperature=temperature,
-            top_p=top_p,
-        )
-        cross_ask_qwen = ask_fn(
-            llm=llm_qwen,
-            tokenizer=tokenizer_qwen,
-            paraphrases=questions_for_answering(original_q, clean_paraphrases_llama),
-            prompt_template=output_prompt,
-            do_sample=True,
-            temperature=temperature,
-            top_p=top_p,
+        cross_ask_llama, cross_ask_qwen = cross_prompt_answers(
+            original_q,
+            clean_paraphrases_qwen,
+            clean_paraphrases_llama,
+            llm_llama,
+            tokenizer_llama,
+            llm_qwen,
+            tokenizer_qwen,
+            ask_fn,
+            output_prompt,
+            temperature,
+            top_p,
         )
 
         record = build_cross_prompting_record(
