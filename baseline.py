@@ -80,6 +80,14 @@ def sample_baseline_pair(
     )
 
 
+def format_baseline_progress(index, total, n, baseline_llama, baseline_qwen):
+    return (
+        f"[{index}/{total}] QID={baseline_llama['question_id']} | n={n} | "
+        f"answers_llama={baseline_llama['answers']} | "
+        f"answers_qwen={baseline_qwen['answers']}"
+    )
+
+
 def main():
     import torch
 
@@ -128,13 +136,13 @@ def main():
         baseline_results_llama.append(baseline_llama)
         baseline_results_qwen.append(baseline_qwen)
 
-        print(
-            f"[{len(baseline_results_llama)}/{len(data)}] "
-            f"QID={baseline_llama['question_id']} | "
-            f"n={args.n} | "
-            f"answers_llama={baseline_llama['answers']} | "
-            f"answers_qwen={baseline_qwen['answers']}"
-        )
+        print(format_baseline_progress(
+            len(baseline_results_llama),
+            len(data),
+            args.n,
+            baseline_llama,
+            baseline_qwen,
+        ))
 
     save_results(baseline_results_llama, args.output_path_llama)
     save_results(baseline_results_qwen, args.output_path_qwen)
