@@ -30,6 +30,9 @@ def parse_args(argv=None):
     parser.add_argument("--load_in_8bit", dest="load_in_8bit", action="store_true")
     parser.add_argument("--no_load_in_8bit", dest="load_in_8bit", action="store_false")
     parser.set_defaults(load_in_8bit=config.LOAD_IN_8BIT)
+    parser.add_argument("--qwen_load_in_8bit", dest="qwen_load_in_8bit", action="store_true")
+    parser.add_argument("--no_qwen_load_in_8bit", dest="qwen_load_in_8bit", action="store_false")
+    parser.set_defaults(qwen_load_in_8bit=config.QWEN_LOAD_IN_8BIT)
 
     return parser.parse_args(argv)
 
@@ -69,7 +72,10 @@ def load_cross_prompting_fixed_examples(
     return select_fn(sample)
 
 
-def load_cross_prompting_fixed_models(args, load_llm_fn, dtype, qwen_load_in_8bit=False):
+def load_cross_prompting_fixed_models(args, load_llm_fn, dtype, qwen_load_in_8bit=None):
+    if qwen_load_in_8bit is None:
+        qwen_load_in_8bit = getattr(args, "qwen_load_in_8bit", False)
+
     return load_llama_qwen_models(
         args,
         load_llm_fn=load_llm_fn,
@@ -247,6 +253,7 @@ def main():
         args,
         load_llm_fn=load_llm,
         dtype=torch.float16,
+        qwen_load_in_8bit=args.qwen_load_in_8bit,
     )
 
 
