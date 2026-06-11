@@ -7,6 +7,7 @@ import time
 import config
 from data_utils import load_json
 from data_utils import save_results
+from data_utils import select_verified_examples
 
 
 def parse_args(argv=None):
@@ -29,6 +30,10 @@ def parse_args(argv=None):
     parser.set_defaults(load_in_8bit=config.LOAD_IN_8BIT)
 
     return parser.parse_args(argv)
+
+
+def select_baseline_examples(sample):
+    return select_verified_examples(sample)
 
 
 def sample_baseline_pair(
@@ -152,8 +157,8 @@ def main():
     )
 
     sample = load_json(config.TRIVIAQA_PATH)
-    data = sample["Data"]
-    print(f"Loaded {len(data)} question-answer pairs")
+    data = select_baseline_examples(sample)
+    print(f"Loaded {len(data)} verified question-answer pairs")
 
     start_time = time.time()
 
