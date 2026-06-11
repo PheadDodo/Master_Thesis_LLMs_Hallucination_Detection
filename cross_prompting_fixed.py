@@ -73,9 +73,6 @@ def load_cross_prompting_fixed_examples(
 
 
 def load_cross_prompting_fixed_models(args, load_llm_fn, dtype, qwen_load_in_8bit=None):
-    if qwen_load_in_8bit is None:
-        qwen_load_in_8bit = getattr(args, "qwen_load_in_8bit", False)
-
     return load_llama_qwen_models(
         args,
         load_llm_fn=load_llm_fn,
@@ -253,7 +250,6 @@ def main():
         args,
         load_llm_fn=load_llm,
         dtype=torch.float16,
-        qwen_load_in_8bit=args.qwen_load_in_8bit,
     )
 
 

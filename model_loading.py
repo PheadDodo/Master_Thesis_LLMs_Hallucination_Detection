@@ -27,7 +27,16 @@ def _model_and_tokenizer(load_result, model_name, model_path):
     return model, tokenizer
 
 
-def load_llama_qwen_model_pair(args, load_llm_fn, dtype, qwen_load_in_8bit=False):
+def resolve_qwen_load_in_8bit(args, qwen_load_in_8bit=None):
+    if qwen_load_in_8bit is not None:
+        return qwen_load_in_8bit
+
+    return getattr(args, "qwen_load_in_8bit", False)
+
+
+def load_llama_qwen_model_pair(args, load_llm_fn, dtype, qwen_load_in_8bit=None):
+    qwen_load_in_8bit = resolve_qwen_load_in_8bit(args, qwen_load_in_8bit)
+
     llm_llama, tokenizer_llama = _model_and_tokenizer(
         load_llm_fn(
             args.llm_llama_path,
@@ -58,7 +67,7 @@ def load_llama_qwen_model_pair(args, load_llm_fn, dtype, qwen_load_in_8bit=False
     )
 
 
-def load_llama_qwen_models(args, load_llm_fn, dtype, qwen_load_in_8bit=False):
+def load_llama_qwen_models(args, load_llm_fn, dtype, qwen_load_in_8bit=None):
     return load_llama_qwen_model_pair(
         args,
         load_llm_fn=load_llm_fn,
