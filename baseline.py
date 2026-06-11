@@ -8,6 +8,7 @@ import config
 from data_utils import load_json
 from data_utils import save_results
 from data_utils import select_verified_examples
+from model_loading import load_llama_qwen_models
 
 
 def parse_args(argv=None):
@@ -34,6 +35,19 @@ def parse_args(argv=None):
 
 def select_baseline_examples(sample):
     return select_verified_examples(sample)
+
+
+def load_baseline_examples(
+    triviaqa_path,
+    load_fn=load_json,
+    select_fn=select_baseline_examples,
+):
+    sample = load_fn(triviaqa_path)
+    return select_fn(sample)
+
+
+def load_baseline_models(args, load_llm_fn, dtype):
+    return load_llama_qwen_models(args, load_llm_fn, dtype)
 
 
 def sample_baseline_pair(
@@ -114,13 +128,14 @@ def run_baseline_records(
     temperature,
     top_p,
     progress_fn=None,
+    process_example_fn=sample_baseline_pair,
 ):
     baseline_results_llama = []
     baseline_results_qwen = []
     total = len(data)
 
     for index, ex in enumerate(data, start=1):
-        baseline_llama, baseline_qwen = sample_baseline_pair(
+        baseline_llama, baseline_qwen = process_example_fn(
             ex=ex,
             n=n,
             llm_llama=llm_llama,
@@ -161,22 +176,13 @@ def main():
 
     args = parse_args()
 
-    llm_llama, tokenizer_llama, _ = load_llm(
-        args.llm_llama_path,
-        load_in_8bit=args.load_in_8bit,
+    llm_llama, tokenizer_llama, llm_qwen, tokenizer_qwen = load_baseline_models(
+        args,
+        load_llm_fn=load_llm,
         dtype=torch.float16,
-        device_map=args.device_map,
     )
 
-    llm_qwen, tokenizer_qwen, _ = load_llm(
-        args.llm_qwen_path,
-        load_in_8bit=False,
-        dtype=torch.float16,
-        device_map=args.qwen_device_map,
-    )
-
-    sample = load_json(config.TRIVIAQA_PATH)
-    data = select_baseline_examples(sample)
+    data = load_baseline_examples(config.TRIVIAQA_PATH)
     print(f"Loaded {len(data)} verified question-answer pairs")
 
     start_time = time.time()

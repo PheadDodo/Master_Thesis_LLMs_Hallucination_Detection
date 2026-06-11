@@ -8,6 +8,7 @@ import config
 from data_utils import load_json
 from data_utils import save_results
 from data_utils import select_verified_examples
+from model_loading import load_llama_qwen_models
 
 
 def parse_args(argv=None):
@@ -68,6 +69,10 @@ def load_cross_prompting_fixed_examples(
     return select_fn(sample)
 
 
+def load_cross_prompting_fixed_models(args, load_llm_fn, dtype):
+    return load_llama_qwen_models(args, load_llm_fn, dtype)
+
+
 def sample_baseline_answers(
     data,
     llm,
@@ -125,6 +130,42 @@ def progress_args_from_cross_prompting_fixed_records(
     return index, total, baseline_llama, baseline_qwen
 
 
+def process_cross_prompting_fixed_example(
+    ex,
+    llm_llama,
+    tokenizer_llama,
+    llm_qwen,
+    tokenizer_qwen,
+    ask_fn,
+    prompt_template,
+    n,
+    temperature,
+    top_p,
+):
+    baseline_llama = sample_baseline_answers(
+        data=[ex],
+        llm=llm_llama,
+        tokenizer=tokenizer_llama,
+        ask_fn=ask_fn,
+        prompt_template=prompt_template,
+        n=n,
+        temperature=temperature,
+        top_p=top_p,
+    )[0]
+    baseline_qwen = sample_baseline_answers(
+        data=[ex],
+        llm=llm_qwen,
+        tokenizer=tokenizer_qwen,
+        ask_fn=ask_fn,
+        prompt_template=prompt_template,
+        n=n,
+        temperature=temperature,
+        top_p=top_p,
+    )[0]
+
+    return baseline_llama, baseline_qwen
+
+
 def sample_cross_prompting_fixed_outputs(
     data,
     llm_llama,
@@ -137,32 +178,25 @@ def sample_cross_prompting_fixed_outputs(
     temperature,
     top_p,
     progress_fn=None,
+    process_example_fn=process_cross_prompting_fixed_example,
 ):
     baseline_results_llama = []
     baseline_results_qwen = []
     total = len(data)
 
     for index, ex in enumerate(data, start=1):
-        baseline_llama = sample_baseline_answers(
-            data=[ex],
-            llm=llm_llama,
-            tokenizer=tokenizer_llama,
+        baseline_llama, baseline_qwen = process_example_fn(
+            ex=ex,
+            llm_llama=llm_llama,
+            tokenizer_llama=tokenizer_llama,
+            llm_qwen=llm_qwen,
+            tokenizer_qwen=tokenizer_qwen,
             ask_fn=ask_fn,
             prompt_template=prompt_template,
             n=n,
             temperature=temperature,
             top_p=top_p,
-        )[0]
-        baseline_qwen = sample_baseline_answers(
-            data=[ex],
-            llm=llm_qwen,
-            tokenizer=tokenizer_qwen,
-            ask_fn=ask_fn,
-            prompt_template=prompt_template,
-            n=n,
-            temperature=temperature,
-            top_p=top_p,
-        )[0]
+        )
 
         baseline_results_llama.append(baseline_llama)
         baseline_results_qwen.append(baseline_qwen)
@@ -204,20 +238,10 @@ def main():
 
     args = parse_args()
 
-    # load the single LLM (Llama-3.1-8B-Instruct) for the baseline method
-    llm_llama, tokenizer_llama, _ = load_llm(
-        args.llm_llama_path,
-        load_in_8bit=args.load_in_8bit,
+    llm_llama, tokenizer_llama, llm_qwen, tokenizer_qwen = load_cross_prompting_fixed_models(
+        args,
+        load_llm_fn=load_llm,
         dtype=torch.float16,
-        device_map=args.device_map,
-    )
-    
-    # load the single LLM (Qwen3-8B) for the baseline method
-    llm_qwen, tokenizer_qwen, _ = load_llm(
-        args.llm_qwen_path,
-        load_in_8bit=False,
-        dtype=torch.float16,
-        device_map=args.qwen_device_map,
     )
 
 

@@ -9,6 +9,7 @@ from data_utils import append_valid_paraphrases
 from data_utils import load_json
 from data_utils import save_results
 from data_utils import select_verified_examples
+from model_loading import load_llama_qwen_models
 
 
 def parse_args(argv=None):
@@ -43,6 +44,10 @@ def load_cross_prompting_examples(
 ):
     sample = load_fn(triviaqa_path)
     return select_fn(sample)
+
+
+def load_cross_prompting_models(args, load_llm_fn, dtype):
+    return load_llama_qwen_models(args, load_llm_fn, dtype)
 
 
 def clean_cross_checked_paraphrases(
@@ -360,23 +365,11 @@ def main():
     from utils import paraphrase_question
 
     args = parse_args()
-    llm_path_llama = args.llm_llama_path
-    llm_path_qwen = args.llm_qwen_path
-    
-    # load Llama-3.1-8B-Instruct
-    llm_llama, tokenizer_llama, _ = load_llm(
-        llm_path_llama,
-        load_in_8bit=args.load_in_8bit,
+
+    llm_llama, tokenizer_llama, llm_qwen, tokenizer_qwen = load_cross_prompting_models(
+        args,
+        load_llm_fn=load_llm,
         dtype=torch.float16,
-        device_map=args.device_map
-        )
-    
-    # load Qwen3-8B
-    llm_qwen, tokenizer_qwen, _ = load_llm(
-        llm_path_qwen,
-        device_map=args.qwen_device_map,
-        load_in_8bit=False,
-        dtype=torch.float16
     )
     
     # load sample data, a verified subset of TriviaQA_rc verified-wikipedia-dev.json, 
