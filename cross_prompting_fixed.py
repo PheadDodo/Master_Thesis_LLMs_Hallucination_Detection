@@ -160,6 +160,18 @@ def sample_cross_prompting_fixed_outputs(
     return cp_fixed, baseline_results_llama, baseline_results_qwen
 
 
+def save_cross_prompting_fixed_outputs(
+    cp_fixed,
+    llama_results,
+    qwen_results,
+    args,
+    save_fn=save_results,
+):
+    save_fn(cp_fixed, args.output_path_cp_fixed)
+    save_fn(llama_results, args.output_path_llama)
+    save_fn(qwen_results, args.output_path_qwen)
+
+
 def main():
     import torch
 
@@ -216,9 +228,12 @@ def main():
         progress_fn=print_progress,
     )
 
-    save_results(cp_fixed, args.output_path_cp_fixed)
-    save_results(baseline_results_llama, args.output_path_llama)
-    save_results(baseline_results_qwen, args.output_path_qwen)
+    save_cross_prompting_fixed_outputs(
+        cp_fixed,
+        baseline_results_llama,
+        baseline_results_qwen,
+        args,
+    )
 
     elapsed = time.time() - start_time
     print(f"Cross-prompting fixed completed in {elapsed:.2f}s ({elapsed/60:.2f} min)")

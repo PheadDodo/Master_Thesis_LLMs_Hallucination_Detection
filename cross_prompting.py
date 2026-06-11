@@ -184,6 +184,10 @@ def run_cross_prompting_records(
     return cleaned_results
 
 
+def save_cross_prompting_results(records, args, save_fn=save_results):
+    save_fn(records, args.output_path_cp)
+
+
 def main():
     import torch
 
@@ -252,7 +256,7 @@ def main():
     )
     
     #save results, do_sample=True, temperature=0.5, top_p=0.95
-    save_results(cleaned_results, args.output_path_cp)
+    save_cross_prompting_results(cleaned_results, args)
     
     print("Cross prompting completed.")
     elapsed = time.time() - start_time
