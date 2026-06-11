@@ -88,6 +88,46 @@ def format_baseline_progress(index, total, n, baseline_llama, baseline_qwen):
     )
 
 
+def run_baseline_records(
+    data,
+    n,
+    llm_llama,
+    tokenizer_llama,
+    llm_qwen,
+    tokenizer_qwen,
+    ask_fn,
+    prompt_template,
+    temperature,
+    top_p,
+    progress_fn=None,
+):
+    baseline_results_llama = []
+    baseline_results_qwen = []
+    total = len(data)
+
+    for index, ex in enumerate(data, start=1):
+        baseline_llama, baseline_qwen = sample_baseline_pair(
+            ex=ex,
+            n=n,
+            llm_llama=llm_llama,
+            tokenizer_llama=tokenizer_llama,
+            llm_qwen=llm_qwen,
+            tokenizer_qwen=tokenizer_qwen,
+            ask_fn=ask_fn,
+            prompt_template=prompt_template,
+            temperature=temperature,
+            top_p=top_p,
+        )
+
+        baseline_results_llama.append(baseline_llama)
+        baseline_results_qwen.append(baseline_qwen)
+
+        if progress_fn is not None:
+            progress_fn(index, total, baseline_llama, baseline_qwen)
+
+    return baseline_results_llama, baseline_results_qwen
+
+
 def main():
     import torch
 
@@ -117,32 +157,28 @@ def main():
 
     start_time = time.time()
 
-    baseline_results_llama = []
-    baseline_results_qwen = []
-    for ex in data:
-        baseline_llama, baseline_qwen = sample_baseline_pair(
-            ex=ex,
-            n=args.n,
-            llm_llama=llm_llama,
-            tokenizer_llama=tokenizer_llama,
-            llm_qwen=llm_qwen,
-            tokenizer_qwen=tokenizer_qwen,
-            ask_fn=ask,
-            prompt_template=output_prompt,
-            temperature=args.temperature,
-            top_p=args.top_p,
-        )
-
-        baseline_results_llama.append(baseline_llama)
-        baseline_results_qwen.append(baseline_qwen)
-
+    def print_progress(index, total, baseline_llama, baseline_qwen):
         print(format_baseline_progress(
-            len(baseline_results_llama),
-            len(data),
+            index,
+            total,
             args.n,
             baseline_llama,
             baseline_qwen,
         ))
+
+    baseline_results_llama, baseline_results_qwen = run_baseline_records(
+        data=data,
+        n=args.n,
+        llm_llama=llm_llama,
+        tokenizer_llama=tokenizer_llama,
+        llm_qwen=llm_qwen,
+        tokenizer_qwen=tokenizer_qwen,
+        ask_fn=ask,
+        prompt_template=output_prompt,
+        temperature=args.temperature,
+        top_p=args.top_p,
+        progress_fn=print_progress,
+    )
 
     save_results(baseline_results_llama, args.output_path_llama)
     save_results(baseline_results_qwen, args.output_path_qwen)
