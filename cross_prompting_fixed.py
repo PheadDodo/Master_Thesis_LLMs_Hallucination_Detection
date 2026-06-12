@@ -4,6 +4,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import argparse
 import time
 
+from cli_utils import add_baseline_output_args
 from cli_utils import add_generation_args
 import config
 from data_utils import load_json
@@ -20,8 +21,7 @@ def parse_args(argv=None):
 
     add_model_loading_args(parser, config)
     add_generation_args(parser, config)
-    parser.add_argument("--output_path_llama", type=str, default=config.OUTPUT_PATH_LLAMA)
-    parser.add_argument("--output_path_qwen", type=str, default=config.OUTPUT_PATH_QWEN)
+    add_baseline_output_args(parser, config)
     parser.add_argument("--output_path_cp_fixed", type=str, default=config.OUTPUT_PATH_CP_FIXED)
 
     return parser.parse_args(argv)
