@@ -21,17 +21,40 @@ __all__ = [
 def add_model_loading_args(parser, config_module):
     """Add shared Llama/Qwen model-loading CLI arguments to a parser."""
 
-    parser.add_argument("--llm_llama_path", type=str, default=config_module.LLM_LLAMA_PATH)
-    parser.add_argument("--llm_qwen_path", type=str, default=config_module.LLM_QWEN_PATH)
+    parser.add_argument(
+        "--llm_llama_path",
+        type=str,
+        default=config_module.LLM_LLAMA_PATH,
+    )
+    parser.add_argument(
+        "--llm_qwen_path",
+        type=str,
+        default=config_module.LLM_QWEN_PATH,
+    )
     parser.add_argument("--device_map", type=str, default=config_module.DEVICE_MAP)
-    parser.add_argument("--qwen_device_map", type=str, default=config_module.QWEN_DEVICE_MAP)
-    parser.add_argument("--load_in_8bit", dest="load_in_8bit", action="store_true")
-    parser.add_argument("--no_load_in_8bit", dest="load_in_8bit", action="store_false")
-    parser.set_defaults(load_in_8bit=config_module.LOAD_IN_8BIT)
-    parser.add_argument("--qwen_load_in_8bit", dest="qwen_load_in_8bit", action="store_true")
-    parser.add_argument("--no_qwen_load_in_8bit", dest="qwen_load_in_8bit", action="store_false")
-    parser.set_defaults(qwen_load_in_8bit=config_module.QWEN_LOAD_IN_8BIT)
+    parser.add_argument(
+        "--qwen_device_map",
+        type=str,
+        default=config_module.QWEN_DEVICE_MAP,
+    )
+    _add_boolean_arg(
+        parser,
+        name="load_in_8bit",
+        default=config_module.LOAD_IN_8BIT,
+    )
+    _add_boolean_arg(
+        parser,
+        name="qwen_load_in_8bit",
+        default=getattr(config_module, "QWEN_LOAD_IN_8BIT", False),
+    )
 
+    return parser
+
+
+def _add_boolean_arg(parser, name, default):
+    parser.add_argument(f"--{name}", dest=name, action="store_true")
+    parser.add_argument(f"--no_{name}", dest=name, action="store_false")
+    parser.set_defaults(**{name: default})
     return parser
 
 

@@ -4,6 +4,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import argparse
 import time
 
+from cli_utils import add_generation_args
 import config
 from data_utils import append_valid_paraphrases
 from data_utils import load_json
@@ -19,9 +20,7 @@ def parse_args(argv=None):
     )
 
     add_model_loading_args(parser, config)
-    parser.add_argument("--temperature", type=float, default=config.TEMPERATURE)
-    parser.add_argument("--top_p", type=float, default=config.TOP_P)
-    parser.add_argument("--n", type=int, default=config.N)
+    add_generation_args(parser, config)
     parser.add_argument("--output_path_cp", type=str, default=config.OUTPUT_PATH_CP)
 
     return parser.parse_args(argv)
