@@ -1,5 +1,21 @@
 """Lightweight shared CLI helpers for experiment stage scripts."""
 
+import argparse
+
+
+def positive_int(value):
+    """Parse a positive integer for argparse CLI options."""
+
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be a positive integer") from exc
+
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+
+    return parsed
+
 
 def add_generation_args(parser, config_module):
     """Add shared sampling/generation CLI arguments to a parser."""

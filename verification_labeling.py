@@ -3,14 +3,8 @@ import time
 
 import config
 
+from cli_utils import positive_int
 from data_utils import load_json, save_results
-
-
-def positive_int(value):
-    parsed = int(value)
-    if parsed <= 0:
-        raise argparse.ArgumentTypeError("must be a positive integer")
-    return parsed
 
 
 def parse_args(argv=None):
@@ -59,6 +53,23 @@ def has_paraphrases(sample):
         return False
 
     return sample[0].get("paraphrases") is not None
+
+
+def paraphrase_status(sample):
+    if has_paraphrases(sample):
+        return True, "Paraphrases are included in the sample."
+
+    return False, "Paraphrases are not included in the sample."
+
+
+def prepare_verification_run(triviaqa_rows, cp_fixed_sample):
+    data = select_verification_examples(triviaqa_rows, cp_fixed_sample)
+    paraphrases_check, paraphrases_message = paraphrase_status(cp_fixed_sample)
+    return {
+        "data": data,
+        "paraphrases_check": paraphrases_check,
+        "paraphrases_message": paraphrases_message,
+    }
 
 
 def load_verification_inputs(
@@ -154,15 +165,11 @@ def main():
     baseline_llama = inputs["baseline_llama"]
     baseline_qwen = inputs["baseline_qwen"]
 
-    data = select_verification_examples(data_all, cp_fixed_sample)
+    prepared = prepare_verification_run(data_all, cp_fixed_sample)
+    data = prepared["data"]
     print(f"Loaded {len(data)} verified question-answer pairs for verification labeling")
     
-    if has_paraphrases(cp_fixed_sample):
-        paraphrases_check = True
-        print("Paraphrases are included in the sample.")
-    else:
-        paraphrases_check = False
-        print("Paraphrases are not included in the sample.")
+    print(prepared["paraphrases_message"])
 
     final_data_cp_fixed, final_baseline_llama, final_baseline_qwen = run_verification_outputs(
         rag_pipeline=llm_rag,
@@ -170,7 +177,7 @@ def main():
         cp_fixed_sample=cp_fixed_sample,
         baseline_llama=baseline_llama,
         baseline_qwen=baseline_qwen,
-        paraphrases_check=paraphrases_check,
+        paraphrases_check=prepared["paraphrases_check"],
     )
     
     save_verification_outputs(
