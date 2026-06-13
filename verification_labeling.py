@@ -44,6 +44,14 @@ def add_hallucination_labels(datasets):
 
 
 def select_verification_examples(triviaqa_rows, cp_fixed_sample):
+    missing_question_id = [ex for ex in cp_fixed_sample if "question_id" not in ex]
+    if missing_question_id:
+        raise ValueError("cp_fixed sample rows must include question_id")
+
+    missing_triviaqa_id = [ex for ex in triviaqa_rows if "QuestionId" not in ex]
+    if missing_triviaqa_id:
+        raise ValueError("TriviaQA rows must include QuestionId")
+
     sample_ids = {ex["question_id"] for ex in cp_fixed_sample}
     return [ex for ex in triviaqa_rows if ex["QuestionId"] in sample_ids]
 
@@ -72,14 +80,25 @@ def prepare_verification_run(triviaqa_rows, cp_fixed_sample):
     }
 
 
+def triviaqa_rows_from_sample(sample):
+    if isinstance(sample, list):
+        return sample
+
+    if "Data" not in sample:
+        raise ValueError("TriviaQA sample must be a list or include Data")
+
+    return sample["Data"]
+
+
 def load_verification_inputs(
     args,
     triviaqa_path=config.TRIVIAQA_PATH,
     load_fn=load_json,
 ):
     triviaqa_sample = load_fn(triviaqa_path)
+
     return {
-        "triviaqa_rows": [ex for ex in triviaqa_sample["Data"]],
+        "triviaqa_rows": triviaqa_rows_from_sample(triviaqa_sample),
         "cp_fixed_sample": load_fn(args.output_path_cp_fixed_se),
         "baseline_llama": load_fn(args.output_path_llama_se),
         "baseline_qwen": load_fn(args.output_path_qwen_se),
