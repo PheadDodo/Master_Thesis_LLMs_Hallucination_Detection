@@ -84,8 +84,14 @@ def triviaqa_rows_from_sample(sample):
     if isinstance(sample, list):
         return sample
 
+    if not isinstance(sample, dict):
+        raise ValueError("TriviaQA sample must be a list or include Data")
+
     if "Data" not in sample:
         raise ValueError("TriviaQA sample must be a list or include Data")
+
+    if not isinstance(sample["Data"], list):
+        raise ValueError("TriviaQA Data must be a list")
 
     return sample["Data"]
 
