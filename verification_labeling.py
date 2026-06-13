@@ -6,9 +6,16 @@ import config
 from data_utils import load_json, save_results
 
 
+def positive_int(value):
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
+
+
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(
-        description="Compute semantic entropy and select final answers"
+        description="Run RAG verification labeling and save final hallucination labels"
     )
     
 
@@ -21,6 +28,7 @@ def parse_args(argv=None):
     parser.add_argument("--evidence_dir", type=str, default=config.EVIDENCE_PATH)
     parser.add_argument("--retriever_path", type=str, default=config.RETRIEVER_PATH)
     parser.add_argument("--verifier_path", type=str, default=config.LLM_VERIFIER_PATH)
+    parser.add_argument("--top_k", type=positive_int, default=5)
     
     # output paths for final results after verification labeling
     parser.add_argument("--output_path_final_llama", type=str, default=config.OUTPUT_PATH_FINAL_LLAMA)
@@ -47,7 +55,81 @@ def select_verification_examples(triviaqa_rows, cp_fixed_sample):
 
 
 def has_paraphrases(sample):
+    if not sample:
+        return False
+
     return sample[0].get("paraphrases") is not None
+
+
+def load_verification_inputs(
+    args,
+    triviaqa_path=config.TRIVIAQA_PATH,
+    load_fn=load_json,
+):
+    triviaqa_sample = load_fn(triviaqa_path)
+    return {
+        "triviaqa_rows": [ex for ex in triviaqa_sample["Data"]],
+        "cp_fixed_sample": load_fn(args.output_path_cp_fixed_se),
+        "baseline_llama": load_fn(args.output_path_llama_se),
+        "baseline_qwen": load_fn(args.output_path_qwen_se),
+    }
+
+
+def load_verification_pipeline(
+    args,
+    retriever_cls,
+    verifier_cls,
+    pipeline_cls,
+    top_k=None,
+):
+    if top_k is None:
+        top_k = args.top_k
+
+    return pipeline_cls(
+        evidence_dir=args.evidence_dir,
+        retriever=retriever_cls(args.retriever_path),
+        verifier=verifier_cls(args.verifier_path),
+        top_k=top_k,
+    )
+
+
+def save_verification_outputs(
+    final_data_cp_fixed,
+    final_baseline_llama,
+    final_baseline_qwen,
+    args,
+    save_fn=save_results,
+):
+    save_fn(final_baseline_llama, args.output_path_final_llama)
+    save_fn(final_baseline_qwen, args.output_path_final_qwen)
+    save_fn(final_data_cp_fixed, args.output_path_final_cp_fixed)
+
+
+def run_verification_outputs(
+    rag_pipeline,
+    data,
+    cp_fixed_sample,
+    baseline_llama,
+    baseline_qwen,
+    paraphrases_check,
+):
+    final_data_cp_fixed, final_baseline_llama, final_baseline_qwen = (
+        rag_pipeline.run_verification_pipeline(
+            data,
+            cp_fixed_sample,
+            baseline_llama,
+            baseline_qwen,
+            paraphrases=paraphrases_check,
+        )
+    )
+
+    add_hallucination_labels([
+        final_data_cp_fixed,
+        final_baseline_llama,
+        final_baseline_qwen,
+    ])
+
+    return final_data_cp_fixed, final_baseline_llama, final_baseline_qwen
 
 
 def main():
@@ -59,20 +141,18 @@ def main():
     
     start_time = time.time()
     
-    llm_rag = RAGVerificationPipeline(
-    evidence_dir=args.evidence_dir,
-    retriever=BGERetriever(args.retriever_path),
-    verifier=LLMVerifier(args.verifier_path),
-    top_k=5,
+    llm_rag = load_verification_pipeline(
+        args,
+        retriever_cls=BGERetriever,
+        verifier_cls=LLMVerifier,
+        pipeline_cls=RAGVerificationPipeline,
     )
     
-    data_all = load_json(config.TRIVIAQA_PATH)
-    data_all = [ex for ex in data_all["Data"]]
-    
-    #cp_sample = load_json(args.output_path_cp_se)
-    cp_fixed_sample = load_json(args.output_path_cp_fixed_se)
-    baseline_llama = load_json(args.output_path_llama_se)
-    baseline_qwen = load_json(args.output_path_qwen_se)
+    inputs = load_verification_inputs(args)
+    data_all = inputs["triviaqa_rows"]
+    cp_fixed_sample = inputs["cp_fixed_sample"]
+    baseline_llama = inputs["baseline_llama"]
+    baseline_qwen = inputs["baseline_qwen"]
 
     data = select_verification_examples(data_all, cp_fixed_sample)
     print(f"Loaded {len(data)} verified question-answer pairs for verification labeling")
@@ -84,17 +164,21 @@ def main():
         paraphrases_check = False
         print("Paraphrases are not included in the sample.")
 
-    final_data_cp_fixed, final_baseline_llama, final_baseline_qwen = llm_rag.run_verification_pipeline(
-        data, cp_fixed_sample, baseline_llama, baseline_qwen, paraphrases=paraphrases_check
+    final_data_cp_fixed, final_baseline_llama, final_baseline_qwen = run_verification_outputs(
+        rag_pipeline=llm_rag,
+        data=data,
+        cp_fixed_sample=cp_fixed_sample,
+        baseline_llama=baseline_llama,
+        baseline_qwen=baseline_qwen,
+        paraphrases_check=paraphrases_check,
     )
     
-    # label ground truth is_hallucinating_true based on gold alias matched, 0 if correct/abstain, 1 if incorrect
-    add_hallucination_labels([final_data_cp_fixed, final_baseline_llama, final_baseline_qwen])
-    
-    #save_results(final_data_cp, args.output_path_final_cp)
-    save_results(final_baseline_llama, args.output_path_final_llama)
-    save_results(final_baseline_qwen, args.output_path_final_qwen)
-    save_results(final_data_cp_fixed, args.output_path_final_cp_fixed)
+    save_verification_outputs(
+        final_data_cp_fixed,
+        final_baseline_llama,
+        final_baseline_qwen,
+        args,
+    )
     elapsed = time.time() - start_time
     print(f"Total processing time: {elapsed / 60 :.2f} minutes")
 
