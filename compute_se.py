@@ -1,6 +1,3 @@
-import os
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
 import argparse
 import time
 
@@ -62,6 +59,8 @@ def save_semantic_entropy_results(results, args, save_fn=save_results):
 
 
 def main():
+    config.configure_runtime_environment()
+
     from semantic_entropy import EntailmentDeberta, SemanticEntropyAnalyzer
 
     args = parse_args()

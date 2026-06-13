@@ -1,6 +1,3 @@
-import os
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
 import argparse
 import time
 
@@ -54,6 +51,8 @@ def has_paraphrases(sample):
 
 
 def main():
+    config.configure_runtime_environment()
+
     from llm_with_rag_verifier import BGERetriever, LLMVerifier, RAGVerificationPipeline
 
     args = parse_args()

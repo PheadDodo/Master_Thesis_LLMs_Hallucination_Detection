@@ -1,6 +1,8 @@
 import os
 
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+def configure_runtime_environment():
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 # model paths
 LLM_LLAMA_PATH = "./models/Meta-Llama-3.1-8B-Instruct"

@@ -1,6 +1,3 @@
-import os
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
 import argparse
 import time
 
@@ -166,6 +163,8 @@ def save_baseline_results(llama_results, qwen_results, args, save_fn=save_result
 
 
 def main():
+    config.configure_runtime_environment()
+
     import torch
 
     from prompt_template import output_prompt

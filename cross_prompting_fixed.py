@@ -1,6 +1,3 @@
-import os
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
 import argparse
 import time
 
@@ -228,6 +225,8 @@ def save_cross_prompting_fixed_outputs(
 
 
 def main():
+    config.configure_runtime_environment()
+
     import torch
 
     from prompt_template import output_prompt
