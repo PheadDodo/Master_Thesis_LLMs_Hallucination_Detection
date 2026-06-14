@@ -13,16 +13,31 @@ def save_results(results, output_path):
     print(f"Saved {len(results)} entries to {output_path}")
 
 
+def has_non_empty_question_id(row):
+    return bool(normalized_question_id(row))
+
+
+def normalized_question_id(row):
+    return str(row.get("QuestionId") or "").strip()
+
+
+def verified_question_ids(rows):
+    if any(not has_non_empty_question_id(ex) for ex in rows):
+        raise ValueError("TriviaQA rows must include non-empty QuestionId")
+
+    return {
+        normalized_question_id(ex)
+        for ex in rows
+        if ex.get("QuestionPartOfVerifiedEval") is True
+    }
+
+
 def select_verified_examples(sample):
     rows = triviaqa_rows_from_sample(sample)
-    data = [
-        ex for ex in rows
-        if ex.get("QuestionPartOfVerifiedEval") is True
-    ]
-    data_ids = {ex.get("QuestionId") for ex in data}
+    data_ids = verified_question_ids(rows)
     return [
         ex for ex in rows
-        if ex.get("QuestionId") in data_ids
+        if normalized_question_id(ex) in data_ids
     ]
 
 

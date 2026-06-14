@@ -4,7 +4,12 @@ import time
 import config
 
 from cli_utils import positive_int
-from data_utils import load_json, save_results, triviaqa_rows_from_sample
+from data_utils import (
+    load_json,
+    normalized_question_id,
+    save_results,
+    triviaqa_rows_from_sample,
+)
 
 
 def parse_args(argv=None):
@@ -44,16 +49,22 @@ def add_hallucination_labels(datasets):
 
 
 def select_verification_examples(triviaqa_rows, cp_fixed_sample):
-    missing_question_id = [ex for ex in cp_fixed_sample if "question_id" not in ex]
+    missing_question_id = [
+        ex for ex in cp_fixed_sample
+        if not str(ex.get("question_id") or "").strip()
+    ]
     if missing_question_id:
-        raise ValueError("cp_fixed sample rows must include question_id")
+        raise ValueError("cp_fixed sample rows must include non-empty question_id")
 
-    missing_triviaqa_id = [ex for ex in triviaqa_rows if "QuestionId" not in ex]
+    missing_triviaqa_id = [
+        ex for ex in triviaqa_rows
+        if not normalized_question_id(ex)
+    ]
     if missing_triviaqa_id:
-        raise ValueError("TriviaQA rows must include QuestionId")
+        raise ValueError("TriviaQA rows must include non-empty QuestionId")
 
-    sample_ids = {ex["question_id"] for ex in cp_fixed_sample}
-    return [ex for ex in triviaqa_rows if ex["QuestionId"] in sample_ids]
+    sample_ids = {str(ex["question_id"] or "").strip() for ex in cp_fixed_sample}
+    return [ex for ex in triviaqa_rows if normalized_question_id(ex) in sample_ids]
 
 
 def has_paraphrases(sample):
