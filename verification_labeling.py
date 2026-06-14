@@ -4,7 +4,7 @@ import time
 import config
 
 from cli_utils import positive_int
-from data_utils import load_json, save_results
+from data_utils import load_json, save_results, triviaqa_rows_from_sample
 
 
 def parse_args(argv=None):
@@ -78,22 +78,6 @@ def prepare_verification_run(triviaqa_rows, cp_fixed_sample):
         "paraphrases_check": paraphrases_check,
         "paraphrases_message": paraphrases_message,
     }
-
-
-def triviaqa_rows_from_sample(sample):
-    if isinstance(sample, list):
-        return sample
-
-    if not isinstance(sample, dict):
-        raise ValueError("TriviaQA sample must be a list or include Data")
-
-    if "Data" not in sample:
-        raise ValueError("TriviaQA sample must be a list or include Data")
-
-    if not isinstance(sample["Data"], list):
-        raise ValueError("TriviaQA Data must be a list")
-
-    return sample["Data"]
 
 
 def load_verification_inputs(

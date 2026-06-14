@@ -14,15 +14,37 @@ def save_results(results, output_path):
 
 
 def select_verified_examples(sample):
+    rows = triviaqa_rows_from_sample(sample)
     data = [
-        ex for ex in sample["Data"]
+        ex for ex in rows
         if ex.get("QuestionPartOfVerifiedEval") is True
     ]
     data_ids = {ex.get("QuestionId") for ex in data}
     return [
-        ex for ex in sample["Data"]
+        ex for ex in rows
         if ex.get("QuestionId") in data_ids
     ]
+
+
+def triviaqa_rows_from_sample(sample):
+    if isinstance(sample, list):
+        rows = sample
+    else:
+        if not isinstance(sample, dict):
+            raise ValueError("TriviaQA sample must be a list or include Data")
+
+        if "Data" not in sample:
+            raise ValueError("TriviaQA sample must be a list or include Data")
+
+        if not isinstance(sample["Data"], list):
+            raise ValueError("TriviaQA Data must be a list")
+
+        rows = sample["Data"]
+
+    if any(not isinstance(ex, dict) for ex in rows):
+        raise ValueError("TriviaQA rows must be dictionaries")
+
+    return rows
 
 
 def append_valid_paraphrases(ex, paraphrases, meaning_results):
