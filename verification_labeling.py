@@ -38,23 +38,44 @@ def parse_args(argv=None):
     return parser.parse_args(argv)
 
 
+def _normalized_rag_verification_label(row):
+    return str(row["rag_verification"] or "").strip().upper()
+
+
 def add_hallucination_labels(datasets):
     for dataset in datasets:
         for row in dataset:
+            rag_verification = _normalized_rag_verification_label(row)
             row["is_hallucinating_true"] = (
                 0
-                if row["gold_correct"] or row["rag_verification"] == "ABSTAIN"
+                if row["gold_correct"] or rag_verification == "ABSTAIN"
                 else 1
             )
 
 
+def _normalized_generated_question_id(row):
+    return str(row.get("question_id") or "").strip()
+
+
+def _require_list_of_dict_rows(rows, label):
+    if not isinstance(rows, list):
+        raise ValueError(f"{label} rows must be a list")
+
+    if any(not isinstance(ex, dict) for ex in rows):
+        raise ValueError(f"{label} rows must be dictionaries")
+
+
 def select_verification_examples(triviaqa_rows, cp_fixed_sample):
+    _require_list_of_dict_rows(cp_fixed_sample, "cp_fixed sample")
+
     missing_question_id = [
         ex for ex in cp_fixed_sample
-        if not str(ex.get("question_id") or "").strip()
+        if not _normalized_generated_question_id(ex)
     ]
     if missing_question_id:
         raise ValueError("cp_fixed sample rows must include non-empty question_id")
+
+    _require_list_of_dict_rows(triviaqa_rows, "TriviaQA")
 
     missing_triviaqa_id = [
         ex for ex in triviaqa_rows
@@ -63,12 +84,15 @@ def select_verification_examples(triviaqa_rows, cp_fixed_sample):
     if missing_triviaqa_id:
         raise ValueError("TriviaQA rows must include non-empty QuestionId")
 
-    sample_ids = {str(ex["question_id"] or "").strip() for ex in cp_fixed_sample}
+    sample_ids = {_normalized_generated_question_id(ex) for ex in cp_fixed_sample}
     return [ex for ex in triviaqa_rows if normalized_question_id(ex) in sample_ids]
 
 
 def has_paraphrases(sample):
-    if not sample:
+    if not isinstance(sample, list) or not sample:
+        return False
+
+    if not isinstance(sample[0], dict):
         return False
 
     return sample[0].get("paraphrases") is not None
