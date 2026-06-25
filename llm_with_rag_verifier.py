@@ -36,7 +36,7 @@ def is_abstain_answer(text: str) -> bool:
 
 
 def parse_verification_label(output_text: str) -> str:
-    if output_text is None:
+    if not isinstance(output_text, str):
         return "PARSE_ERROR"
 
     text = output_text.strip().upper()
@@ -70,6 +70,10 @@ def normalize_answer(s: str) -> str:
 
 def is_gold_correct(candidate_answer, normalized_aliases):
     return normalize_answer(candidate_answer) in set(normalized_aliases)
+
+
+def _prompt_text_or_empty(text: Any) -> str:
+    return text if isinstance(text, str) else ""
 
 
 def build_abstain_verification_result(example, candidate_answer):
@@ -123,6 +127,8 @@ def verify_candidate_answer_with_retrieval(
 
 
 def build_verification_query(question: str, candidate_answer: str) -> str:
+    question = _prompt_text_or_empty(question)
+    candidate_answer = _prompt_text_or_empty(candidate_answer)
     return f"Question: {question} Candidate answer: {candidate_answer}"
 
 
@@ -131,12 +137,26 @@ def build_verification_prompt(
     candidate_answer: str,
     retrieved_chunks,
 ) -> str:
+    question = _prompt_text_or_empty(question)
+    candidate_answer = _prompt_text_or_empty(candidate_answer)
+
     if retrieved_chunks is None:
         retrieved_chunks = []
 
     context_blocks = []
-    for i, chunk in enumerate(retrieved_chunks, start=1):
-        context_blocks.append(f"Passage {i}:\n{chunk['text']}")
+    for chunk in retrieved_chunks:
+        if not isinstance(chunk, dict):
+            continue
+
+        chunk_text = chunk.get("text")
+        if not isinstance(chunk_text, str):
+            continue
+
+        chunk_text = chunk_text.strip()
+        if not chunk_text:
+            continue
+
+        context_blocks.append(f"Passage {len(context_blocks) + 1}:\n{chunk_text}")
     context = "\n\n".join(context_blocks) if context_blocks else "[No context]"
 
     return f"""You are a strict fact verification system.
@@ -205,6 +225,9 @@ def build_entity_page_chunks(
 ) -> List[Dict[str, str]]:
     chunks = []
     for page in example.get("EntityPages") or []:
+        if not isinstance(page, dict):
+            continue
+
         filename = page.get("Filename")
         title = page.get("Title", "")
         if not filename:

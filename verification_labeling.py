@@ -61,37 +61,49 @@ def _normalized_rag_verification_label(row):
     if "rag_verification" not in row:
         raise ValueError("Rows must include rag_verification when gold_correct is false")
 
-    rag_verification = str(row["rag_verification"] or "").strip().upper()
+    if not isinstance(row["rag_verification"], str):
+        raise ValueError(
+            "Rows must include rag_verification as a string when gold_correct is false"
+        )
+
+    rag_verification = row["rag_verification"].strip().upper()
     if not rag_verification:
         raise ValueError("Rows must include non-empty rag_verification when gold_correct is false")
 
     return rag_verification
 
 
+def _hallucination_label(row):
+    if not isinstance(row, dict):
+        raise ValueError("Rows must be dictionaries")
+
+    if "gold_correct" not in row:
+        raise ValueError("Rows must include gold_correct")
+
+    if not isinstance(row["gold_correct"], bool):
+        raise ValueError("Rows must include gold_correct as a boolean")
+
+    if row["gold_correct"]:
+        return 0
+
+    rag_verification = _normalized_rag_verification_label(row)
+    return 0 if rag_verification == "ABSTAIN" else 1
+
+
 def add_hallucination_labels(datasets):
     if not isinstance(datasets, list):
         raise ValueError("datasets must be a list")
 
+    pending_labels = []
     for dataset in datasets:
         if not isinstance(dataset, list):
             raise ValueError("Each dataset must be a list")
 
-        for row in dataset:
-            if not isinstance(row, dict):
-                raise ValueError("Rows must be dictionaries")
+        pending_labels.append([_hallucination_label(row) for row in dataset])
 
-            if "gold_correct" not in row:
-                raise ValueError("Rows must include gold_correct")
-
-            if not isinstance(row["gold_correct"], bool):
-                raise ValueError("Rows must include gold_correct as a boolean")
-
-            if row["gold_correct"]:
-                row["is_hallucinating_true"] = 0
-                continue
-
-            rag_verification = _normalized_rag_verification_label(row)
-            row["is_hallucinating_true"] = 0 if rag_verification == "ABSTAIN" else 1
+    for dataset, labels in zip(datasets, pending_labels):
+        for row, label in zip(dataset, labels):
+            row["is_hallucinating_true"] = label
 
 
 def _normalized_generated_question_id(row):
@@ -106,15 +118,26 @@ def _require_list_of_dict_rows(rows, label):
         raise ValueError(f"{label} rows must be dictionaries")
 
 
+def _require_unique_ids(ids, label):
+    seen = set()
+    duplicates = []
+    for question_id in ids:
+        if question_id in seen and question_id not in duplicates:
+            duplicates.append(question_id)
+        seen.add(question_id)
+
+    if duplicates:
+        raise ValueError(f"{label} rows must not contain duplicate question_id values")
+
+
 def select_verification_examples(triviaqa_rows, cp_fixed_sample):
     _require_list_of_dict_rows(cp_fixed_sample, "cp_fixed sample")
 
-    missing_question_id = [
-        ex for ex in cp_fixed_sample
-        if not _normalized_generated_question_id(ex)
-    ]
+    generated_ids = [_normalized_generated_question_id(ex) for ex in cp_fixed_sample]
+    missing_question_id = [question_id for question_id in generated_ids if not question_id]
     if missing_question_id:
         raise ValueError("cp_fixed sample rows must include non-empty question_id")
+    _require_unique_ids(generated_ids, "cp_fixed sample")
 
     _require_list_of_dict_rows(triviaqa_rows, "TriviaQA")
 
@@ -125,7 +148,22 @@ def select_verification_examples(triviaqa_rows, cp_fixed_sample):
     if missing_triviaqa_id:
         raise ValueError("TriviaQA rows must include non-empty QuestionId")
 
-    sample_ids = {_normalized_generated_question_id(ex) for ex in cp_fixed_sample}
+    sample_ids = set(generated_ids)
+    triviaqa_ids = {normalized_question_id(ex) for ex in triviaqa_rows}
+    missing_triviaqa_ids = sorted(sample_ids - triviaqa_ids)
+    if missing_triviaqa_ids:
+        raise ValueError(
+            "cp_fixed sample question_id values must exist in TriviaQA rows "
+            f"(missing_triviaqa={missing_triviaqa_ids})"
+        )
+
+    selected_ids = [
+        normalized_question_id(ex)
+        for ex in triviaqa_rows
+        if normalized_question_id(ex) in sample_ids
+    ]
+    _require_unique_ids(selected_ids, "TriviaQA")
+
     return [ex for ex in triviaqa_rows if normalized_question_id(ex) in sample_ids]
 
 
@@ -201,6 +239,51 @@ def save_verification_outputs(
     save_fn(final_data_cp_fixed, args.output_path_final_cp_fixed)
 
 
+def _require_rag_pipeline_outputs(outputs):
+    if not isinstance(outputs, (tuple, list)) or len(outputs) != 3:
+        raise ValueError(
+            "RAG pipeline must return cp_fixed, llama, and qwen result collections"
+        )
+
+    final_data_cp_fixed, final_baseline_llama, final_baseline_qwen = outputs
+    datasets = [
+        final_data_cp_fixed,
+        final_baseline_llama,
+        final_baseline_qwen,
+    ]
+    if any(not isinstance(dataset, list) for dataset in datasets):
+        raise ValueError(
+            "RAG pipeline must return cp_fixed, llama, and qwen result collections"
+        )
+
+    lengths = {len(dataset) for dataset in datasets}
+    if len(lengths) != 1:
+        raise ValueError("RAG pipeline result collections must have the same length")
+
+    return final_data_cp_fixed, final_baseline_llama, final_baseline_qwen
+
+
+def _require_verification_input_collections(
+    data,
+    cp_fixed_sample,
+    baseline_llama,
+    baseline_qwen,
+):
+    _require_list_of_dict_rows(data, "verification data")
+    _require_list_of_dict_rows(cp_fixed_sample, "cp_fixed sample")
+    _require_list_of_dict_rows(baseline_llama, "baseline_llama")
+    _require_list_of_dict_rows(baseline_qwen, "baseline_qwen")
+
+    lengths = {
+        len(data),
+        len(cp_fixed_sample),
+        len(baseline_llama),
+        len(baseline_qwen),
+    }
+    if len(lengths) != 1:
+        raise ValueError("Verification input collections must have the same length")
+
+
 def run_verification_outputs(
     rag_pipeline,
     data,
@@ -209,7 +292,14 @@ def run_verification_outputs(
     baseline_qwen,
     paraphrases_check,
 ):
-    final_data_cp_fixed, final_baseline_llama, final_baseline_qwen = (
+    _require_verification_input_collections(
+        data,
+        cp_fixed_sample,
+        baseline_llama,
+        baseline_qwen,
+    )
+
+    final_data_cp_fixed, final_baseline_llama, final_baseline_qwen = _require_rag_pipeline_outputs(
         rag_pipeline.run_verification_pipeline(
             data,
             cp_fixed_sample,
