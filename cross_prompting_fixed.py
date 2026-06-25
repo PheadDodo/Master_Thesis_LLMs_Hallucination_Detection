@@ -5,37 +5,141 @@ from cli_utils import add_baseline_output_args
 from cli_utils import add_generation_args
 import config
 from data_utils import load_json
+from data_utils import normalized_question_id
 from data_utils import save_results
 from data_utils import select_verified_examples
+from data_utils import triviaqa_rows_from_sample
 from model_loading import add_model_loading_args
 from model_loading import load_llama_qwen_models
 
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(
-        description="Baseline: sample a single LLM n times per original question"
+        description=(
+            "Official baseline: sample Llama and Qwen n times per original "
+            "question and build cp_fixed outputs"
+        )
     )
 
     add_model_loading_args(parser, config)
     add_generation_args(parser, config)
     add_baseline_output_args(parser, config)
-    parser.add_argument("--output_path_cp_fixed", type=str, default=config.OUTPUT_PATH_CP_FIXED)
+    parser.add_argument(
+        "--output_path_cp_fixed",
+        type=str,
+        default=config.OUTPUT_PATH_CP_FIXED,
+    )
 
     return parser.parse_args(argv)
 
 
+def _records_by_question_id(records, label):
+    if not isinstance(records, list):
+        raise ValueError(f"{label} records must be a list")
+
+    records_by_id = {}
+    for record in records:
+        normalized_record = _normalize_baseline_record(record, label)
+        normalized_id = normalized_record["question_id"]
+
+        if normalized_id in records_by_id:
+            question_id = record.get("question_id")
+            raise ValueError(f"duplicate question_id in {label} records: {question_id}")
+        records_by_id[normalized_id] = normalized_record
+    return records_by_id
+
+
+def _normalize_baseline_record(record, label):
+    normalized_id = _validate_baseline_record(record, label)
+    return {
+        **record,
+        "question_id": normalized_id,
+        "original": _require_non_empty_text(
+            record.get("original"),
+            f"{label} record original",
+        ),
+    }
+
+
+def _validate_baseline_record(record, label):
+    if not isinstance(record, dict):
+        raise ValueError(f"{label} records must be dictionaries")
+
+    question_id = record.get("question_id")
+    normalized_id = "" if question_id is None else str(question_id).strip()
+    if not normalized_id:
+        raise ValueError(f"{label} record must include a non-empty question_id")
+
+    _require_non_empty_text(record.get("original"), f"{label} record original")
+
+    _validate_answer_list(record.get("answers"), f"{label} record answers")
+
+    return normalized_id
+
+
+def _validate_answer_list(answers, label):
+    if not isinstance(answers, list):
+        raise ValueError(f"{label} must be a list")
+    if any(not isinstance(answer, str) for answer in answers):
+        raise ValueError(f"{label} must be strings")
+
+
+def _validate_answer_count(answers, label, n):
+    if len(answers) != n:
+        raise ValueError(f"{label} must contain exactly {n} answers")
+
+
+def _require_non_empty_text(value, label):
+    if value is None:
+        raise ValueError(f"{label} must be non-empty")
+    if not isinstance(value, str):
+        raise ValueError(f"{label} must be a string")
+
+    text = value.strip()
+    if not text:
+        raise ValueError(f"{label} must be non-empty")
+    return text
+
+
+def _require_processed_pair(processed):
+    if (
+        not isinstance(processed, (tuple, list))
+        or len(processed) != 2
+    ):
+        raise ValueError("process_example_fn must return llama and qwen records")
+
+    return processed
+
+
+def _require_positive_n(n):
+    if isinstance(n, bool) or not isinstance(n, int):
+        raise ValueError("n must be a positive integer")
+
+    if n <= 0:
+        raise ValueError("n must be a positive integer")
+
+
 def build_cross_prompting_fixed(llama_data, qwen_data):
     cp_fixed = []
-    qwen_by_id = {ex["question_id"]: ex for ex in qwen_data}
+    llama_by_id = _records_by_question_id(llama_data, "llama")
+    qwen_by_id = _records_by_question_id(qwen_data, "qwen")
+    if llama_by_id.keys() != qwen_by_id.keys():
+        missing_qwen = sorted(llama_by_id.keys() - qwen_by_id.keys())
+        missing_llama = sorted(qwen_by_id.keys() - llama_by_id.keys())
+        raise ValueError(
+            "llama and qwen records must have matching question_id sets "
+            f"(missing_qwen={missing_qwen}, missing_llama={missing_llama})"
+        )
 
-    for ex_llama in llama_data:
-        qid = ex_llama["question_id"]
-        original_q = ex_llama["original"]
+    for qid, ex_llama in llama_by_id.items():
+        original_q = str(ex_llama["original"]).strip()
         answers_llama = ex_llama["answers"]
 
-        qwen_entry = qwen_by_id.get(qid)
-        if not qwen_entry:
-            continue
+        qwen_entry = qwen_by_id[qid]
+        if qwen_entry["original"] != original_q:
+            raise ValueError(
+                "matched llama and qwen records must have matching original"
+            )
         answers_qwen = qwen_entry["answers"]
 
         cp_entry = {
@@ -78,11 +182,17 @@ def sample_baseline_answers(
     temperature,
     top_p,
 ):
+    _require_positive_n(n)
+
     baseline_results = []
 
-    for ex in data:
-        original_q = ex["Question"]
-        question_id = ex["QuestionId"]
+    for ex in triviaqa_rows_from_sample(data):
+        original_q = _require_non_empty_text(ex.get("Question"), "TriviaQA row Question")
+
+        question_id = normalized_question_id(ex)
+        if not question_id:
+            raise ValueError("TriviaQA row must include non-empty QuestionId")
+
         answers = ask_fn(
             llm=llm,
             tokenizer=tokenizer,
@@ -92,6 +202,8 @@ def sample_baseline_answers(
             temperature=temperature,
             top_p=top_p,
         )
+        _validate_answer_list(answers, "answers returned by ask_fn")
+        _validate_answer_count(answers, "answers returned by ask_fn", n)
 
         baseline_results.append({
             "question_id": question_id,
@@ -175,12 +287,15 @@ def sample_cross_prompting_fixed_outputs(
     progress_fn=None,
     process_example_fn=process_cross_prompting_fixed_example,
 ):
+    _require_positive_n(n)
+    data = triviaqa_rows_from_sample(data)
     baseline_results_llama = []
     baseline_results_qwen = []
     total = len(data)
+    seen_question_ids = set()
 
     for index, ex in enumerate(data, start=1):
-        baseline_llama, baseline_qwen = process_example_fn(
+        processed = process_example_fn(
             ex=ex,
             llm_llama=llm_llama,
             tokenizer_llama=tokenizer_llama,
@@ -192,6 +307,27 @@ def sample_cross_prompting_fixed_outputs(
             temperature=temperature,
             top_p=top_p,
         )
+        baseline_llama, baseline_qwen = _require_processed_pair(processed)
+
+        baseline_llama = _normalize_baseline_record(baseline_llama, "llama")
+        baseline_qwen = _normalize_baseline_record(baseline_qwen, "qwen")
+        llama_question_id = baseline_llama["question_id"]
+        qwen_question_id = baseline_qwen["question_id"]
+        if llama_question_id != qwen_question_id:
+            raise ValueError(
+                "processed llama and qwen records must have matching question_id"
+            )
+        if baseline_llama["original"] != baseline_qwen["original"]:
+            raise ValueError(
+                "processed llama and qwen records must have matching original"
+            )
+        _validate_answer_count(baseline_llama["answers"], "llama record answers", n)
+        _validate_answer_count(baseline_qwen["answers"], "qwen record answers", n)
+        if llama_question_id in seen_question_ids:
+            raise ValueError(
+                f"duplicate question_id in processed records: {llama_question_id}"
+            )
+        seen_question_ids.add(llama_question_id)
 
         baseline_results_llama.append(baseline_llama)
         baseline_results_qwen.append(baseline_qwen)
@@ -241,7 +377,6 @@ def main():
         dtype=torch.float16,
     )
 
-
     # load TriviaQA verified subset
     data = load_cross_prompting_fixed_examples(config.TRIVIAQA_PATH)
     print(f"Loaded {len(data)} verified question-answer pairs")
@@ -284,6 +419,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
 

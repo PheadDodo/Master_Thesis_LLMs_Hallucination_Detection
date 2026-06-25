@@ -1,9 +1,7 @@
 import os
 import re
 import string
-from typing import List, Dict, Any, Tuple
-
-#from transformers import HybridCache
+from typing import Any, Dict, List
 
 
 ABSTAIN_PATTERNS = [
@@ -38,6 +36,9 @@ def is_abstain_answer(text: str) -> bool:
 
 
 def parse_verification_label(output_text: str) -> str:
+    if output_text is None:
+        return "PARSE_ERROR"
+
     text = output_text.strip().upper()
     text = re.sub(r"<\|.*?\|>", " ", text)
     text = re.sub(r"<.*?>", " ", text)
@@ -125,7 +126,14 @@ def build_verification_query(question: str, candidate_answer: str) -> str:
     return f"Question: {question} Candidate answer: {candidate_answer}"
 
 
-def build_verification_prompt(question: str, candidate_answer: str, retrieved_chunks) -> str:
+def build_verification_prompt(
+    question: str,
+    candidate_answer: str,
+    retrieved_chunks,
+) -> str:
+    if retrieved_chunks is None:
+        retrieved_chunks = []
+
     context_blocks = []
     for i, chunk in enumerate(retrieved_chunks, start=1):
         context_blocks.append(f"Passage {i}:\n{chunk['text']}")
@@ -160,6 +168,9 @@ Label:"""
 
 
 def split_into_sentences(text: str) -> List[str]:
+    if text is None:
+        return []
+
     text = text.strip()
     if not text:
         return []
@@ -167,7 +178,11 @@ def split_into_sentences(text: str) -> List[str]:
     return [s.strip() for s in sents if s.strip()]
 
 
-def chunk_text_by_sentences(text: str, window: int = 3, stride: int = 1) -> List[str]:
+def chunk_text_by_sentences(
+    text: str,
+    window: int = 3,
+    stride: int = 1,
+) -> List[str]:
     sents = split_into_sentences(text)
     chunks = []
     if not sents:
@@ -189,7 +204,7 @@ def build_entity_page_chunks(
     warn_fn=print,
 ) -> List[Dict[str, str]]:
     chunks = []
-    for page in example.get("EntityPages", []):
+    for page in example.get("EntityPages") or []:
         filename = page.get("Filename")
         title = page.get("Title", "")
         if not filename:
@@ -262,6 +277,15 @@ def run_verification_records(
     top_k: int = None,
     paraphrases: bool = True,
 ):
+    lengths = {
+        len(data),
+        len(final_sample),
+        len(final_baseline_llama),
+        len(final_baseline_qwen),
+    }
+    if len(lengths) != 1:
+        raise ValueError("Verification input collections must have the same length")
+
     final_data_cp = []
     final_baseline_llama_data = []
     final_baseline_qwen_data = []
@@ -290,7 +314,11 @@ def run_verification_records(
 # =========================
 
 class BGERetriever:
-    def __init__(self, model_name: str = "BAAI/bge-large-en-v1.5", device: str = None):
+    def __init__(
+        self,
+        model_name: str = "BAAI/bge-large-en-v1.5",
+        device: str = None,
+    ):
         import torch
         from sentence_transformers import SentenceTransformer
 
@@ -325,7 +353,7 @@ class BGERetriever:
         query: str,
         chunks: List[Dict[str, str]],
         top_k: int = 5,
-        batch_size: int = 32
+        batch_size: int = 32,
     ) -> List[Dict[str, Any]]:
         if not chunks:
             return []
@@ -384,7 +412,11 @@ class RAGVerificationPipeline:
         return split_into_sentences(text)
 
     @staticmethod
-    def chunk_text_by_sentences(text: str, window: int = 3, stride: int = 1) -> List[str]:
+    def chunk_text_by_sentences(
+        text: str,
+        window: int = 3,
+        stride: int = 1,
+    ) -> List[str]:
         return chunk_text_by_sentences(text, window=window, stride=stride)
 
     def build_chunks_from_entity_pages(self, example: Dict[str, Any]) -> List[Dict[str, str]]:
@@ -403,7 +435,11 @@ class RAGVerificationPipeline:
         return build_verification_query(question, candidate_answer)
 
     @staticmethod
-    def build_verification_prompt(question: str, candidate_answer: str, retrieved_chunks) -> str:
+    def build_verification_prompt(
+        question: str,
+        candidate_answer: str,
+        retrieved_chunks,
+    ) -> str:
         return build_verification_prompt(question, candidate_answer, retrieved_chunks)
 
     # ------------------------------------------------------------------
@@ -504,7 +540,13 @@ class RAGVerificationPipeline:
 # =========================
 
 class LLMVerifier:
-    def __init__(self, model_name: str, do_sample: bool = False, temperature: float = 0.0, top_p: float = 1.0):
+    def __init__(
+        self,
+        model_name: str,
+        do_sample: bool = False,
+        temperature: float = 0.0,
+        top_p: float = 1.0,
+    ):
         import torch
         from transformers import AutoTokenizer, AutoModelForCausalLM
 
@@ -531,7 +573,12 @@ class LLMVerifier:
     def _parse_label(self, output_text: str) -> str:
         return parse_verification_label(output_text)
 
-    def generate_label(self, prompt: str, candidate_answer: str = None, max_new_tokens: int = 3) -> str:
+    def generate_label(
+        self,
+        prompt: str,
+        candidate_answer: str = None,
+        max_new_tokens: int = 3,
+    ) -> str:
         import torch
 
         if candidate_answer is not None and self._is_abstain_answer(candidate_answer):

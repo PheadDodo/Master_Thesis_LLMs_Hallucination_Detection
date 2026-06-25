@@ -16,41 +16,82 @@ def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description="Run RAG verification labeling and save final hallucination labels"
     )
-    
 
     # load samples with semantic entropy
     parser.add_argument("--output_path_llama_se", type=str, default=config.OUTPUT_PATH_LLAMA_SE)
     parser.add_argument("--output_path_qwen_se", type=str, default=config.OUTPUT_PATH_QWEN_SE)
-    parser.add_argument("--output_path_cp_se", type=str, default=config.OUTPUT_PATH_CP_SE)
-    parser.add_argument("--output_path_cp_fixed_se", type=str, default=config.OUTPUT_PATH_CP_FIXED_SE)
-    
+    parser.add_argument(
+        "--output_path_cp_se",
+        type=str,
+        default=config.OUTPUT_PATH_CP_SE,
+    )
+    parser.add_argument(
+        "--output_path_cp_fixed_se",
+        type=str,
+        default=config.OUTPUT_PATH_CP_FIXED_SE,
+    )
+
     parser.add_argument("--evidence_dir", type=str, default=config.EVIDENCE_PATH)
     parser.add_argument("--retriever_path", type=str, default=config.RETRIEVER_PATH)
     parser.add_argument("--verifier_path", type=str, default=config.LLM_VERIFIER_PATH)
     parser.add_argument("--top_k", type=positive_int, default=5)
-    
+
     # output paths for final results after verification labeling
-    parser.add_argument("--output_path_final_llama", type=str, default=config.OUTPUT_PATH_FINAL_LLAMA)
-    parser.add_argument("--output_path_final_qwen", type=str, default=config.OUTPUT_PATH_FINAL_QWEN)
+    parser.add_argument(
+        "--output_path_final_llama",
+        type=str,
+        default=config.OUTPUT_PATH_FINAL_LLAMA,
+    )
+    parser.add_argument(
+        "--output_path_final_qwen",
+        type=str,
+        default=config.OUTPUT_PATH_FINAL_QWEN,
+    )
     parser.add_argument("--output_path_final_cp", type=str, default=config.OUTPUT_PATH_FINAL_CP)
-    parser.add_argument("--output_path_final_cp_fixed", type=str, default=config.OUTPUT_PATH_FINAL_CP_FIXED)
+    parser.add_argument(
+        "--output_path_final_cp_fixed",
+        type=str,
+        default=config.OUTPUT_PATH_FINAL_CP_FIXED,
+    )
 
     return parser.parse_args(argv)
 
 
 def _normalized_rag_verification_label(row):
-    return str(row["rag_verification"] or "").strip().upper()
+    if "rag_verification" not in row:
+        raise ValueError("Rows must include rag_verification when gold_correct is false")
+
+    rag_verification = str(row["rag_verification"] or "").strip().upper()
+    if not rag_verification:
+        raise ValueError("Rows must include non-empty rag_verification when gold_correct is false")
+
+    return rag_verification
 
 
 def add_hallucination_labels(datasets):
+    if not isinstance(datasets, list):
+        raise ValueError("datasets must be a list")
+
     for dataset in datasets:
+        if not isinstance(dataset, list):
+            raise ValueError("Each dataset must be a list")
+
         for row in dataset:
+            if not isinstance(row, dict):
+                raise ValueError("Rows must be dictionaries")
+
+            if "gold_correct" not in row:
+                raise ValueError("Rows must include gold_correct")
+
+            if not isinstance(row["gold_correct"], bool):
+                raise ValueError("Rows must include gold_correct as a boolean")
+
+            if row["gold_correct"]:
+                row["is_hallucinating_true"] = 0
+                continue
+
             rag_verification = _normalized_rag_verification_label(row)
-            row["is_hallucinating_true"] = (
-                0
-                if row["gold_correct"] or rag_verification == "ABSTAIN"
-                else 1
-            )
+            row["is_hallucinating_true"] = 0 if rag_verification == "ABSTAIN" else 1
 
 
 def _normalized_generated_question_id(row):
@@ -193,16 +234,16 @@ def main():
     from llm_with_rag_verifier import BGERetriever, LLMVerifier, RAGVerificationPipeline
 
     args = parse_args()
-    
+
     start_time = time.time()
-    
+
     llm_rag = load_verification_pipeline(
         args,
         retriever_cls=BGERetriever,
         verifier_cls=LLMVerifier,
         pipeline_cls=RAGVerificationPipeline,
     )
-    
+
     inputs = load_verification_inputs(args)
     data_all = inputs["triviaqa_rows"]
     cp_fixed_sample = inputs["cp_fixed_sample"]
@@ -212,7 +253,7 @@ def main():
     prepared = prepare_verification_run(data_all, cp_fixed_sample)
     data = prepared["data"]
     print(f"Loaded {len(data)} verified question-answer pairs for verification labeling")
-    
+
     print(prepared["paraphrases_message"])
 
     final_data_cp_fixed, final_baseline_llama, final_baseline_qwen = run_verification_outputs(
@@ -223,7 +264,7 @@ def main():
         baseline_qwen=baseline_qwen,
         paraphrases_check=prepared["paraphrases_check"],
     )
-    
+
     save_verification_outputs(
         final_data_cp_fixed,
         final_baseline_llama,
@@ -236,7 +277,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
 
