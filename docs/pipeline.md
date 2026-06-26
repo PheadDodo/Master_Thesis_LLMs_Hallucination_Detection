@@ -7,19 +7,19 @@ This file explains the main experiment flow. It is meant to help a reader unders
 The standard pipeline runs in this order:
 
 ```text
-src/cross_prompting.py
-src/cross_prompting_fixed.py
-src/compute_se.py
-src/verification_labeling.py
+hallucination_detection.stages.cross_prompting
+hallucination_detection.stages.cross_prompting_fixed
+hallucination_detection.stages.compute_se
+hallucination_detection.stages.verification_labeling
 ```
 
-`src/final_pipeline.py` runs these stages in sequence.
+`hallucination_detection.pipeline` runs these stages in sequence.
 
 ## Stage Responsibilities
 
 ### 1. Cross-Prompting
 
-Script: `src/cross_prompting.py`
+Module: `hallucination_detection.stages.cross_prompting`
 
 Purpose:
 - Generate paraphrases for verified TriviaQA questions.
@@ -38,7 +38,7 @@ Important output fields:
 
 ### 2. Fixed Baseline / `cp_fixed`
 
-Script: `src/cross_prompting_fixed.py`
+Module: `hallucination_detection.stages.cross_prompting_fixed`
 
 Purpose:
 - Sample standalone baseline answers from Llama and Qwen.
@@ -46,11 +46,11 @@ Purpose:
 - Combine both answer sets into the official `cp_fixed` format.
 
 Comment:
-`src/baseline.py` is kept as an optional research utility. The official baseline stage used by the pipeline is `src/cross_prompting_fixed.py`.
+`hallucination_detection.stages.baseline` is kept as an optional research utility. The official baseline stage used by the pipeline is `hallucination_detection.stages.cross_prompting_fixed`.
 
 ### 3. Semantic Entropy
 
-Script: `src/compute_se.py`
+Module: `hallucination_detection.stages.compute_se`
 
 Purpose:
 - Load generated answer collections.
@@ -65,7 +65,7 @@ Important output fields:
 
 ### 4. RAG Verification And Labeling
 
-Script: `src/verification_labeling.py`
+Module: `hallucination_detection.stages.verification_labeling`
 
 Purpose:
 - Load semantic-entropy outputs.
@@ -83,7 +83,7 @@ Important output fields:
 Run only when local models, datasets, and evidence files are available:
 
 ```powershell
-python src/final_pipeline.py
+python -m hallucination_detection.pipeline
 ```
 
 The full pipeline can be expensive because it may load local LLMs and write large result files.

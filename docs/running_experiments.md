@@ -14,6 +14,7 @@ Activate it:
 
 ```powershell
 conda activate thesis-hallucination
+python -m pip install -e .
 ```
 
 Comment:
@@ -31,25 +32,15 @@ Expected:
 - Torch import succeeds
 - CUDA availability depends on the machine
 
-## 3. Run Lightweight Tests
-
-Run this before committing or archiving:
+## 3. Run Syntax Checks
 
 ```powershell
-python -m pytest tests -q
+python -m py_compile src/hallucination_detection/config.py src/hallucination_detection/cli_utils.py src/hallucination_detection/data_utils.py src/hallucination_detection/model_loading.py src/hallucination_detection/prompts.py src/hallucination_detection/generation.py src/hallucination_detection/pipeline.py src/hallucination_detection/stages/baseline.py src/hallucination_detection/stages/cross_prompting.py src/hallucination_detection/stages/cross_prompting_fixed.py src/hallucination_detection/stages/compute_se.py src/hallucination_detection/stages/verification_labeling.py src/hallucination_detection/entropy/semantic_entropy.py src/hallucination_detection/verification/rag_verifier.py
 ```
 
-These tests use fake loaders, fake model functions, and pure helper seams. They should not load the full LLM pipeline.
+## 4. Check Runtime Paths
 
-## 4. Run Syntax Checks
-
-```powershell
-python -m py_compile src/baseline.py src/cli_utils.py src/compute_se.py src/config.py src/data_utils.py src/model_loading.py src/cross_prompting.py src/cross_prompting_fixed.py src/final_pipeline.py src/verification_labeling.py src/utils.py src/llm_with_rag_verifier.py src/semantic_entropy.py src/prompt_template.py
-```
-
-## 5. Check Runtime Paths
-
-Before running the full pipeline, inspect `src/config.py`.
+Before running the full pipeline, inspect `src/hallucination_detection/config.py`.
 
 Important paths:
 - `LLM_LLAMA_PATH`
@@ -62,29 +53,29 @@ Important paths:
 Comment:
 The repository does not commit local models, datasets, evidence files, or generated results.
 
-## 6. Run Individual Stages
+## 5. Run Individual Stages
 
 Use individual stages when debugging or reproducing part of the experiment:
 
 ```powershell
-python src/cross_prompting.py
-python src/cross_prompting_fixed.py
-python src/compute_se.py
-python src/verification_labeling.py
+python -m hallucination_detection.stages.cross_prompting
+python -m hallucination_detection.stages.cross_prompting_fixed
+python -m hallucination_detection.stages.compute_se
+python -m hallucination_detection.stages.verification_labeling
 ```
 
-## 7. Run The Full Pipeline
+## 6. Run The Full Pipeline
 
 Only run the full pipeline when local models and datasets are available:
 
 ```powershell
-python src/final_pipeline.py
+python -m hallucination_detection.pipeline
 ```
 
 Warning:
 This may be slow and may write large JSON result files.
 
-## 8. Update Existing Environment
+## 7. Update Existing Environment
 
 If `environment.yml` changes later:
 
@@ -92,10 +83,11 @@ If `environment.yml` changes later:
 conda env update -f environment.yml --prune
 ```
 
-## 9. Remove And Recreate Environment
+## 8. Remove And Recreate Environment
 
 ```powershell
 conda env remove -n thesis-hallucination
 conda env create -f environment.yml
 conda activate thesis-hallucination
+python -m pip install -e .
 ```

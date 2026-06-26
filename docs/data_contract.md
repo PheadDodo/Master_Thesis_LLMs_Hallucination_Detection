@@ -1,6 +1,6 @@
 # Data Contract
 
-This file documents the JSON fields passed between pipeline stages. The field names should stay stable unless all downstream consumers and tests are updated together.
+This file documents the JSON fields passed between pipeline stages. The field names should stay stable unless all downstream consumers and validation checks are updated together.
 
 ## TriviaQA Input Fields
 
@@ -145,4 +145,4 @@ Rules:
 - Do not rename JSON keys casually.
 - Preserve awkward historical spellings such as `answers_responsed_llama` and `answers_responsed_qwen`.
 - Validate malformed rows before mutating or saving outputs.
-- Keep pure data helpers in `src/data_utils.py`, not `src/utils.py`.
+- Keep pure data helpers in `src/hallucination_detection/data_utils.py`, not `src/hallucination_detection/generation.py`.
