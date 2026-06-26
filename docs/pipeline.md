@@ -7,19 +7,19 @@ This file explains the main experiment flow. It is meant to help a reader unders
 The standard pipeline runs in this order:
 
 ```text
-cross_prompting.py
-cross_prompting_fixed.py
-compute_se.py
-verification_labeling.py
+src/cross_prompting.py
+src/cross_prompting_fixed.py
+src/compute_se.py
+src/verification_labeling.py
 ```
 
-`final_pipeline.py` runs these stages in sequence.
+`src/final_pipeline.py` runs these stages in sequence.
 
 ## Stage Responsibilities
 
 ### 1. Cross-Prompting
 
-Script: `cross_prompting.py`
+Script: `src/cross_prompting.py`
 
 Purpose:
 - Generate paraphrases for verified TriviaQA questions.
@@ -38,7 +38,7 @@ Important output fields:
 
 ### 2. Fixed Baseline / `cp_fixed`
 
-Script: `cross_prompting_fixed.py`
+Script: `src/cross_prompting_fixed.py`
 
 Purpose:
 - Sample standalone baseline answers from Llama and Qwen.
@@ -46,11 +46,11 @@ Purpose:
 - Combine both answer sets into the official `cp_fixed` format.
 
 Comment:
-`baseline.py` is kept as an optional research utility. The official baseline stage used by the pipeline is `cross_prompting_fixed.py`.
+`src/baseline.py` is kept as an optional research utility. The official baseline stage used by the pipeline is `src/cross_prompting_fixed.py`.
 
 ### 3. Semantic Entropy
 
-Script: `compute_se.py`
+Script: `src/compute_se.py`
 
 Purpose:
 - Load generated answer collections.
@@ -65,7 +65,7 @@ Important output fields:
 
 ### 4. RAG Verification And Labeling
 
-Script: `verification_labeling.py`
+Script: `src/verification_labeling.py`
 
 Purpose:
 - Load semantic-entropy outputs.
@@ -83,7 +83,7 @@ Important output fields:
 Run only when local models, datasets, and evidence files are available:
 
 ```powershell
-python final_pipeline.py
+python src/final_pipeline.py
 ```
 
 The full pipeline can be expensive because it may load local LLMs and write large result files.

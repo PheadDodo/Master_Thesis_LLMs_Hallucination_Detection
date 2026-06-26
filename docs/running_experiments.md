@@ -44,12 +44,12 @@ These tests use fake loaders, fake model functions, and pure helper seams. They 
 ## 4. Run Syntax Checks
 
 ```powershell
-python -m py_compile baseline.py cli_utils.py compute_se.py config.py data_utils.py model_loading.py cross_prompting.py cross_prompting_fixed.py final_pipeline.py verification_labeling.py utils.py llm_with_rag_verifier.py semantic_entropy.py prompt_template.py
+python -m py_compile src/baseline.py src/cli_utils.py src/compute_se.py src/config.py src/data_utils.py src/model_loading.py src/cross_prompting.py src/cross_prompting_fixed.py src/final_pipeline.py src/verification_labeling.py src/utils.py src/llm_with_rag_verifier.py src/semantic_entropy.py src/prompt_template.py
 ```
 
 ## 5. Check Runtime Paths
 
-Before running the full pipeline, inspect `config.py`.
+Before running the full pipeline, inspect `src/config.py`.
 
 Important paths:
 - `LLM_LLAMA_PATH`
@@ -67,10 +67,10 @@ The repository does not commit local models, datasets, evidence files, or genera
 Use individual stages when debugging or reproducing part of the experiment:
 
 ```powershell
-python cross_prompting.py
-python cross_prompting_fixed.py
-python compute_se.py
-python verification_labeling.py
+python src/cross_prompting.py
+python src/cross_prompting_fixed.py
+python src/compute_se.py
+python src/verification_labeling.py
 ```
 
 ## 7. Run The Full Pipeline
@@ -78,7 +78,7 @@ python verification_labeling.py
 Only run the full pipeline when local models and datasets are available:
 
 ```powershell
-python final_pipeline.py
+python src/final_pipeline.py
 ```
 
 Warning:

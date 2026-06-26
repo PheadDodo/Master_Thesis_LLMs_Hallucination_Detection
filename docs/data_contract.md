@@ -145,4 +145,4 @@ Rules:
 - Do not rename JSON keys casually.
 - Preserve awkward historical spellings such as `answers_responsed_llama` and `answers_responsed_qwen`.
 - Validate malformed rows before mutating or saving outputs.
-- Keep pure data helpers in `data_utils.py`, not `utils.py`.
+- Keep pure data helpers in `src/data_utils.py`, not `src/utils.py`.

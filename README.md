@@ -6,14 +6,14 @@ The project compares baseline model answers, cross-prompted answers, semantic en
 
 ## Repository Map
 
-- `final_pipeline.py` runs the main experiment stages in order.
-- `cross_prompting.py` generates and checks paraphrases, then samples cross-prompted answers.
-- `cross_prompting_fixed.py` creates the official Llama/Qwen baseline and `cp_fixed` answer format.
-- `compute_se.py` computes semantic entropy and selects final answers.
-- `verification_labeling.py` runs RAG verification and assigns hallucination labels.
-- `semantic_entropy.py` contains semantic clustering and entropy logic.
-- `llm_with_rag_verifier.py` contains retrieval and verifier logic.
-- `baseline.py` is an optional standalone baseline utility for additional research runs.
+- `src/final_pipeline.py` runs the main experiment stages in order.
+- `src/cross_prompting.py` generates and checks paraphrases, then samples cross-prompted answers.
+- `src/cross_prompting_fixed.py` creates the official Llama/Qwen baseline and `cp_fixed` answer format.
+- `src/compute_se.py` computes semantic entropy and selects final answers.
+- `src/verification_labeling.py` runs RAG verification and assigns hallucination labels.
+- `src/semantic_entropy.py` contains semantic clustering and entropy logic.
+- `src/llm_with_rag_verifier.py` contains retrieval and verifier logic.
+- `src/baseline.py` is an optional standalone baseline utility for additional research runs.
 - `tests/` contains lightweight tests that do not load real local models.
 
 ## Documentation
@@ -26,13 +26,13 @@ The project compares baseline model answers, cross-prompted answers, semantic en
 
 The main stages are:
 
-1. `cross_prompting.py` generates paraphrases, checks semantic equivalence, and samples cross-prompted answers.
-2. `cross_prompting_fixed.py` samples the official Llama/Qwen baseline answers and combines them into `cp_fixed`.
-3. `compute_se.py` computes semantic entropy and selects final answers.
-4. `verification_labeling.py` runs RAG verification and assigns hallucination labels.
-5. `final_pipeline.py` runs the stage scripts in order.
+1. `src/cross_prompting.py` generates paraphrases, checks semantic equivalence, and samples cross-prompted answers.
+2. `src/cross_prompting_fixed.py` samples the official Llama/Qwen baseline answers and combines them into `cp_fixed`.
+3. `src/compute_se.py` computes semantic entropy and selects final answers.
+4. `src/verification_labeling.py` runs RAG verification and assigns hallucination labels.
+5. `src/final_pipeline.py` runs the stage scripts in order.
 
-`baseline.py` is kept as an optional standalone baseline utility and is not part of `final_pipeline.py`.
+`src/baseline.py` is kept as an optional standalone baseline utility and is not part of `src/final_pipeline.py`.
 
 ## Environment
 
@@ -63,7 +63,7 @@ python -m pytest tests -q
 Run syntax checks for the pipeline scripts:
 
 ```powershell
-python -m py_compile baseline.py cli_utils.py compute_se.py config.py data_utils.py model_loading.py cross_prompting.py cross_prompting_fixed.py final_pipeline.py verification_labeling.py utils.py llm_with_rag_verifier.py semantic_entropy.py prompt_template.py
+python -m py_compile src/baseline.py src/cli_utils.py src/compute_se.py src/config.py src/data_utils.py src/model_loading.py src/cross_prompting.py src/cross_prompting_fixed.py src/final_pipeline.py src/verification_labeling.py src/utils.py src/llm_with_rag_verifier.py src/semantic_entropy.py src/prompt_template.py
 ```
 
 ## Running The Pipeline
@@ -71,10 +71,10 @@ python -m py_compile baseline.py cli_utils.py compute_se.py config.py data_utils
 The full pipeline may load local LLMs and write large result files, so only run it when you intentionally want the full experiment:
 
 ```powershell
-python final_pipeline.py
+python src/final_pipeline.py
 ```
 
-Before running, check `config.py` and confirm that local model, dataset, evidence, and output paths are correct.
+Before running, check `src/config.py` and confirm that local model, dataset, evidence, and output paths are correct.
 
 ## Local Files Not Committed
 
@@ -87,5 +87,4 @@ The repository intentionally excludes local or large experiment artifacts:
 - `.pytest_cache/`
 - `__pycache__/`
 - secrets such as `access_token.txt` and `.env`
-
 
