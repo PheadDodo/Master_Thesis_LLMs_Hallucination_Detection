@@ -28,8 +28,23 @@ def run_script(
     print(f"Finished {script_name} in {elapsed:.2f} seconds")
 
 
+def _validated_pipeline_stages(stages):
+    if isinstance(stages, str):
+        raise ValueError("Pipeline stages must be non-empty script names")
+
+    try:
+        stage_names = list(stages)
+    except TypeError as exc:
+        raise ValueError("Pipeline stages must be non-empty script names") from exc
+
+    if any(not isinstance(stage, str) or not stage.strip() for stage in stage_names):
+        raise ValueError("Pipeline stages must be non-empty script names")
+
+    return stage_names
+
+
 def run_pipeline(stages=PIPELINE_STAGES, run_fn=run_script):
-    for script_name in stages:
+    for script_name in _validated_pipeline_stages(stages):
         run_fn(script_name)
 
 

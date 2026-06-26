@@ -1,19 +1,21 @@
 import os
-from pydoc import text
 import re
 import logging
 import unicodedata
-from unidecode import unidecode
-from ftfy import fix_text
-import numpy as np
+import math
 
 from collections import Counter
 
-import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-
 
 # reproduced from https://github.com/jlko/semantic_uncertainty
+
+def _fix_text(text):
+    try:
+        from ftfy import fix_text
+    except ImportError:
+        return text
+
+    return fix_text(text)
 
 class BaseEntailment:
     def save_prediction_cache(self):
@@ -40,6 +42,9 @@ class EntailmentDeberta(BaseEntailment):
         wrap_in_answer_template=True,
         verbose=False,
     ):
+        import torch
+        from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
         self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.short_phrase_max_tokens = short_phrase_max_tokens
         self.wrap_in_answer_template = wrap_in_answer_template
@@ -64,7 +69,7 @@ class EntailmentDeberta(BaseEntailment):
         if text is None:
             return ""
 
-        text = fix_text(str(text))
+        text = _fix_text(str(text))
         text = unicodedata.normalize("NFKC", text)
         text = text.lower().strip()
 
@@ -139,12 +144,13 @@ class EntailmentDeberta(BaseEntailment):
     # Model inference
     # ----------------------------
 
-    @torch.no_grad()
     def check_implication(self, text1, text2):
         """
         Check whether text2 is entailed by text1.
         Returns: (prediction_id, prediction_label)
         """
+        import torch
+
         premise = self.wrap_text_for_nli(text1)
         hypothesis = self.wrap_text_for_nli(text2)
 
@@ -159,7 +165,8 @@ class EntailmentDeberta(BaseEntailment):
             truncation=True,
         ).to(self.device)
 
-        outputs = self.model(**inputs)
+        with torch.no_grad():
+            outputs = self.model(**inputs)
         logits = outputs.logits
         prediction_id = torch.argmax(logits, dim=1).item()
         prediction_label = self.id2label[prediction_id]
@@ -266,18 +273,20 @@ class SemanticEntropyAnalyzer:
         Output:
             cluster_entropy: Entropy, e.g. (-p log p).sum() for p = [1/4, 2/4, 1/4].
         """
-        if semantic_ids is None or len(semantic_ids) == 0:
+        if semantic_ids is None:
+            return float("inf")
+
+        semantic_ids = list(semantic_ids)
+        if len(semantic_ids) == 0:
             return float("inf")
         if len(semantic_ids) == 1:
             return 0.0
 
         n_generations = len(semantic_ids)
-        counts = np.bincount(semantic_ids)
-        probabilities = counts / n_generations
-        assert np.isclose(probabilities.sum(), 1.0), \
-            f"Probabilities do not sum to 1: {probabilities}"
-        entropy = -np.sum(
-            np.where(probabilities > 0, probabilities * np.log(probabilities), 0)
+        counts = Counter(semantic_ids)
+        entropy = -sum(
+            (count / n_generations) * math.log(count / n_generations)
+            for count in counts.values()
         )
         return max(0.0, float(entropy))
 

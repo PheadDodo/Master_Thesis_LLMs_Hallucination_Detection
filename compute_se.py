@@ -36,6 +36,12 @@ def load_semantic_entropy_inputs(args, load_fn=load_json):
     }
 
 
+def _require_row_collection(name, rows):
+    if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+        raise ValueError(f"{name} must be a list of dictionaries")
+    return rows
+
+
 def compute_semantic_entropy_results(
     analyzer,
     samples_llama,
@@ -43,6 +49,11 @@ def compute_semantic_entropy_results(
     samples_cp,
     samples_cp_fixed,
 ):
+    samples_llama = _require_row_collection("samples_llama", samples_llama)
+    samples_qwen = _require_row_collection("samples_qwen", samples_qwen)
+    samples_cp = _require_row_collection("samples_cp", samples_cp)
+    samples_cp_fixed = _require_row_collection("samples_cp_fixed", samples_cp_fixed)
+
     return {
         "cp": analyzer.process_sample_collection(samples_cp),
         "cp_fixed": analyzer.process_sample_collection(samples_cp_fixed),

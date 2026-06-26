@@ -1,21 +1,20 @@
-import os
 import re
 import warnings
-import numpy as np
-import logging
-import unicodedata
-from unidecode import unidecode
-from ftfy import fix_text
-from collections import Counter
-
-import torch
-from huggingface_hub import login, snapshot_download
-from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline, BitsAndBytesConfig, AutoModelForSequenceClassification
-from datasets import load_dataset
-from tqdm import tqdm
 
 
-def load_llm(model_path, load_in_8bit=True, dtype=torch.float16, device_map="auto"):
+
+def load_llm(model_path, load_in_8bit=True, dtype=None, device_map="auto"):
+    import torch
+    from transformers import (
+        AutoModelForCausalLM,
+        AutoTokenizer,
+        BitsAndBytesConfig,
+        pipeline,
+    )
+
+    if dtype is None:
+        dtype = torch.float16
+
     is_cpu_only = device_map == "cpu"
 
     if is_cpu_only and load_in_8bit:
