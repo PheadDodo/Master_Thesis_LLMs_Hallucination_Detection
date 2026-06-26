@@ -4,10 +4,10 @@ import time
 
 
 PIPELINE_STAGES = [
-    "cross_prompting.py",
-    "cross_prompting_fixed.py",
-    "compute_se.py",
-    "verification_labeling.py",
+    "src/cross_prompting.py",
+    "src/cross_prompting_fixed.py",
+    "src/compute_se.py",
+    "src/verification_labeling.py",
 ]
 
 
