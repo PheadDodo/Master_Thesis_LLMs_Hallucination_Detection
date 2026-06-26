@@ -4,28 +4,28 @@ import time
 
 
 PIPELINE_STAGES = [
-    "src/cross_prompting.py",
-    "src/cross_prompting_fixed.py",
-    "src/compute_se.py",
-    "src/verification_labeling.py",
+    "hallucination_detection.stages.cross_prompting",
+    "hallucination_detection.stages.cross_prompting_fixed",
+    "hallucination_detection.stages.compute_se",
+    "hallucination_detection.stages.verification_labeling",
 ]
 
 
 def run_script(
-    script_name,
+    module_name,
     runner=subprocess.run,
     executable=sys.executable,
     timer=time.time,
 ):
     start_time = timer()
-    print(f"Running {script_name} ...")
+    print(f"Running {module_name} ...")
     try:
-        runner([executable, script_name], check=True)
+        runner([executable, "-m", module_name], check=True)
     except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"{script_name} failed with code {e.returncode}") from e
-    
+        raise RuntimeError(f"{module_name} failed with code {e.returncode}") from e
+
     elapsed = timer() - start_time
-    print(f"Finished {script_name} in {elapsed:.2f} seconds")
+    print(f"Finished {module_name} in {elapsed:.2f} seconds")
 
 
 def _validated_pipeline_stages(stages):
@@ -44,8 +44,8 @@ def _validated_pipeline_stages(stages):
 
 
 def run_pipeline(stages=PIPELINE_STAGES, run_fn=run_script):
-    for script_name in _validated_pipeline_stages(stages):
-        run_fn(script_name)
+    for module_name in _validated_pipeline_stages(stages):
+        run_fn(module_name)
 
 
 def main():

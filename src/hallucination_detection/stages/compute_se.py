@@ -1,9 +1,9 @@
 import argparse
 import time
 
-import config
+from hallucination_detection import config
 
-from data_utils import load_json, save_results
+from hallucination_detection.data_utils import load_json, save_results
 
 
 def parse_args(argv=None):
@@ -72,7 +72,10 @@ def save_semantic_entropy_results(results, args, save_fn=save_results):
 def main():
     config.configure_runtime_environment()
 
-    from semantic_entropy import EntailmentDeberta, SemanticEntropyAnalyzer
+    from hallucination_detection.entropy.semantic_entropy import (
+        EntailmentDeberta,
+        SemanticEntropyAnalyzer,
+    )
 
     args = parse_args()
     

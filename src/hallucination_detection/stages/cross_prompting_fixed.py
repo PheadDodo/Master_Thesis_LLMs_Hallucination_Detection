@@ -1,16 +1,16 @@
 import argparse
 import time
 
-from cli_utils import add_baseline_output_args
-from cli_utils import add_generation_args
-import config
-from data_utils import load_json
-from data_utils import normalized_question_id
-from data_utils import save_results
-from data_utils import select_verified_examples
-from data_utils import triviaqa_rows_from_sample
-from model_loading import add_model_loading_args
-from model_loading import load_llama_qwen_models
+from hallucination_detection import config
+from hallucination_detection.cli_utils import add_baseline_output_args
+from hallucination_detection.cli_utils import add_generation_args
+from hallucination_detection.data_utils import load_json
+from hallucination_detection.data_utils import normalized_question_id
+from hallucination_detection.data_utils import save_results
+from hallucination_detection.data_utils import select_verified_examples
+from hallucination_detection.data_utils import triviaqa_rows_from_sample
+from hallucination_detection.model_loading import add_model_loading_args
+from hallucination_detection.model_loading import load_llama_qwen_models
 
 
 def parse_args(argv=None):
@@ -365,9 +365,9 @@ def main():
 
     import torch
 
-    from prompt_template import output_prompt
-    from utils import ask
-    from utils import load_llm
+    from hallucination_detection.generation import ask
+    from hallucination_detection.generation import load_llm
+    from hallucination_detection.prompts import output_prompt
 
     args = parse_args()
 

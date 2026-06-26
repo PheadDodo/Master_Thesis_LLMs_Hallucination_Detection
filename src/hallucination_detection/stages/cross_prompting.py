@@ -1,14 +1,14 @@
 import argparse
 import time
 
-from cli_utils import add_generation_args
-import config
-from data_utils import append_valid_paraphrases
-from data_utils import load_json
-from data_utils import save_results
-from data_utils import select_verified_examples
-from model_loading import add_model_loading_args
-from model_loading import load_llama_qwen_models
+from hallucination_detection import config
+from hallucination_detection.cli_utils import add_generation_args
+from hallucination_detection.data_utils import append_valid_paraphrases
+from hallucination_detection.data_utils import load_json
+from hallucination_detection.data_utils import save_results
+from hallucination_detection.data_utils import select_verified_examples
+from hallucination_detection.model_loading import add_model_loading_args
+from hallucination_detection.model_loading import load_llama_qwen_models
 
 
 def parse_args(argv=None):
@@ -355,11 +355,13 @@ def main():
 
     import torch
 
-    from prompt_template import paraphrase_prompt, output_prompt, paraphrases_check
-    from utils import ask
-    from utils import check_meaning
-    from utils import load_llm
-    from utils import paraphrase_question
+    from hallucination_detection.generation import ask
+    from hallucination_detection.generation import check_meaning
+    from hallucination_detection.generation import load_llm
+    from hallucination_detection.generation import paraphrase_question
+    from hallucination_detection.prompts import paraphrase_prompt
+    from hallucination_detection.prompts import output_prompt
+    from hallucination_detection.prompts import paraphrases_check
 
     args = parse_args()
 

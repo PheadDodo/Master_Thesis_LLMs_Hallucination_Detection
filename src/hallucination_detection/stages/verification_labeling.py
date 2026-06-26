@@ -1,10 +1,10 @@
 import argparse
 import time
 
-import config
+from hallucination_detection import config
 
-from cli_utils import positive_int
-from data_utils import (
+from hallucination_detection.cli_utils import positive_int
+from hallucination_detection.data_utils import (
     load_json,
     normalized_question_id,
     save_results,
@@ -321,7 +321,11 @@ def run_verification_outputs(
 def main():
     config.configure_runtime_environment()
 
-    from llm_with_rag_verifier import BGERetriever, LLMVerifier, RAGVerificationPipeline
+    from hallucination_detection.verification.rag_verifier import (
+        BGERetriever,
+        LLMVerifier,
+        RAGVerificationPipeline,
+    )
 
     args = parse_args()
 
